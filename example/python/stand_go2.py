@@ -54,6 +54,7 @@ if __name__ == '__main__':
         step_start = time.perf_counter()
 
         runing_time += dt
+        print("runing_time: ", runing_time)
 
         if (runing_time < 3.0):
             # Stand up in first 3 second
