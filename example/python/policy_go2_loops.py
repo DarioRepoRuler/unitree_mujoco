@@ -257,9 +257,9 @@ if __name__ == '__main__':
 
             runing_time_fast += dt_fast
             
-            if (runing_time_slow < 3.0):
+            if (runing_time_slow < 3.0) and policy_id[0]==0:
                 # Stand up in first 3 ssecond
-
+                print(f"Stand up")
                 # Total time for standing up or standing down is about 1.2s
                 phase = np.tanh(runing_time_slow / 1.2)
                 for i in range(12):
@@ -278,8 +278,24 @@ if __name__ == '__main__':
                     cmd.motor_cmd[i].dq = 0.0
                     cmd.motor_cmd[i].kd = 1.
                     cmd.motor_cmd[i].tau = 0.0
+            
+            elif policy_id[0]==1:
+                # Enter damping mode
+                print(f"[E]mergency: in damping mode")
+                if timeoffset is None:
+                    timeoffset = runing_time_slow
+                for i in range(12):
+                    cmd.motor_cmd[i].q = 0.0
+                    cmd.motor_cmd[i].kp = 0.0
+                    cmd.motor_cmd[i].dq = 0.0
+                    cmd.motor_cmd[i].kd =3.5
+                    cmd.motor_cmd[i].tau = 0.0
+                if runing_time_slow > timeoffset + 2.0:
+                    exit(1)
 
-            elif (runing_time_slow > 3.0) and policy_id==2:
+                
+
+            elif policy_id==2:
                 command[:] = 0.0
                 print(f"[D]own")
                 if timeoffset is None:
@@ -293,20 +309,33 @@ if __name__ == '__main__':
                     cmd.motor_cmd[i].dq = 0.0
                     cmd.motor_cmd[i].kd = 3.6
                     cmd.motor_cmd[i].tau = 0.0
-                if runing_time > timeoffset + 2.0:
+
+                if runing_time_slow > timeoffset + 2.0:
                     runing_time_slow = 0.0
                     policy_id[0]=-1
-                    timeoffset = None               
+                    timeoffset = None
+
+
+            
+            elif policy_id[0]==-1:
+                print(f"StandBy")
+                runing_time_slow = 0.0
+                cmd.motor_cmd[i].q = 0.0
+                cmd.motor_cmd[i].kp = 0.0
+                cmd.motor_cmd[i].dq = 0.0
+                cmd.motor_cmd[i].kd =3.5
+                cmd.motor_cmd[i].tau = 0.0
+                               
             
             cmd.crc = crc.Crc(cmd)
             pub.Write(cmd)
             
             total_fast_time = time.perf_counter() - step_start_slow
-            print(f"Total fast time: {total_fast_time}")
+            #print(f"Total fast time: {total_fast_time}")
             time_until_next_step = dt_fast - (time.perf_counter() - step_start_fast)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
-        print(f"Total slow time: {time.perf_counter() - step_start_slow}")
+        #print(f"Total slow time: {time.perf_counter() - step_start_slow}")
         time_until_next_step = dt_slow - (time.perf_counter() - step_start_slow)
         if time_until_next_step > 0:
             time.sleep(time_until_next_step)
