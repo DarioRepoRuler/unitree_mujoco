@@ -25,11 +25,11 @@ def load(path, actor_critic:ActorCritic, device):
 
 cfg ={"actor_hidden_dim": 256,"actor_n_layers": 6,"critic_hidden_dim": 256,"critic_n_layers": 6,"std": 1.0}
 num_single_obs=48
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() else "cpu")
 obs = torch.zeros(num_single_obs).to(device)
 dq = torch.zeros(12).to(device)
 
-ckpt_path = os.path.join(os.getcwd(),"best_models/rsl_harder_push.pt")
+ckpt_path = os.path.join(os.getcwd(),"best_models/fixed_stand_still.pt")
 if not os.path.exists(ckpt_path):
     assert False, f"Model checkpoint not found at {ckpt_path}"
 
@@ -70,8 +70,12 @@ default_pos = torch.tensor(
 dt = 0.002
 runing_time = 0.0
 crc = CRC()
+
+# I figured out that np arrays are not overwritten by the subscriber callback, the tensors however are infact overwritten!
 command = torch.tensor([0.0, 0.0 , 0.0]).to(device)*2.0
-policy_id = torch.tensor((0,)).to(device) 
+policy_id = torch.tensor((0,)).to(device)
+quaternion = torch.zeros(4)
+
 input("Press enter to start")
 
 def quat_invert(q):
@@ -101,14 +105,15 @@ def LowStateHandler(msg: LowState_):
     
     
     #print("Accelerometer: ", msg.imu_state.accelerometer)
-    #proj_gravity = -torch.tensor(msg.imu_state.accelerometer)
+    # accel = torch.tensor(msg.imu_state.accelerometer).to(device)
+    # print(f"Accelerometer: {accel+torch.tensor([-0.1838, +0.0188, -9.81]).to(device)}")
     #proj_gravity = proj_gravity / torch.norm(proj_gravity)
 
-    quaternion = np.array(msg.imu_state.quaternion)
+    quaternion[:] = torch.tensor(msg.imu_state.quaternion)
     ang_vel = np.array(msg.imu_state.gyroscope)
-    local_w = rotate_vector(quat_invert(quaternion), ang_vel)
+    #local_w = rotate_vector(quat_invert(np.array(quaternion)), ang_vel)
     obs[3:6]=torch.tensor(ang_vel).to(device) * 0.25
-    proj_gravity = get_gravity_vector(quaternion)
+    proj_gravity = get_gravity_vector(np.array(quaternion))
     obs[6:9]=torch.tensor(proj_gravity).to(device)
     
     q=torch.zeros(12).to(device)
@@ -120,12 +125,12 @@ def LowStateHandler(msg: LowState_):
 
     obs[9:21]=q-default_pos[7:]
     obs[21:33]=qvel*0.1
-    #print(f"joint angles: {q}")
-    #print(f"joint velocities: {qvel}")
+
 
 def HighStateHandler(msg: SportModeState_):
-    obs[:3]=torch.tensor(msg.velocity).to(device) * 2.0
-    #print(f"base velocity: {obs[:3]}" )
+    glob__lin_vel = np.array(msg.velocity)
+    local_vel = rotate_vector(quat_invert(quaternion), glob__lin_vel)*2.0
+    obs[:3]=torch.tensor(local_vel).to(device)
 
 def on_press(key):
     global stop_loop
