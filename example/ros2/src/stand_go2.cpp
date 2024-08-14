@@ -67,7 +67,8 @@ private:
         for (int i = 0; i < 20; i++)
         {
             low_cmd.motor_cmd[i].mode = 0x01; // Set toque mode, 0x00 is passive mode
-            low_cmd.motor_cmd[i].q = PosStopF;
+            low_cmd.motor_cmd[i].q = 
+            PosStopF;
             low_cmd.motor_cmd[i].kp = 0;
             low_cmd.motor_cmd[i].dq = VelStopF;
             low_cmd.motor_cmd[i].kd = 0;

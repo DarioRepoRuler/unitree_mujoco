@@ -302,12 +302,13 @@ if __name__ == '__main__':
                     timeoffset = runing_time_slow
                 # Then stand down
                 phase = np.tanh((runing_time_slow - timeoffset) / 1.2)
+                
                 for i in range(12):
                     cmd.motor_cmd[i].q = phase * stand_down_joint_pos[i] + (
                         1 - phase) * stand_up_joint_pos[i]
-                    cmd.motor_cmd[i].kp = 50.0
+                    cmd.motor_cmd[i].kp = 30.0
                     cmd.motor_cmd[i].dq = 0.0
-                    cmd.motor_cmd[i].kd = 3.6
+                    cmd.motor_cmd[i].kd = 1.0
                     cmd.motor_cmd[i].tau = 0.0
 
                 if runing_time_slow > timeoffset + 2.0:
