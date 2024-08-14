@@ -187,10 +187,10 @@ def on_press(key):
         elif key.char == 'e':
             command[:] = 0.0
             policy_id[0] = 1
-            print(f"Policy changed to: {policy_id}")
+            print(f"Commanded policy: {policy_id}")
         
         elif key.char == 'd':
-            print(f"Laying down")
+            print(f"Commanded laying down")
             command[:] = 0.0
             policy_id[0] = 2
         
@@ -329,7 +329,7 @@ if __name__ == '__main__':
 
             elif policy_id==2:
                 command[:] = 0.0
-                print(f"[D]own")
+                print(f"[D]own ")
                 if timeoffset is None:
                     timeoffset = runing_time_slow
                 # Then stand down
