@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-//#include <torch/torch.h>
+#include <torch/torch.h>
 
 #define INFO_IMU 1          // Set 1 to info IMU states
 #define INFO_MOTOR 1        // Set 1 to info motor states
