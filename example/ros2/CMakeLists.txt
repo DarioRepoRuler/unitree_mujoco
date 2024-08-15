@@ -34,12 +34,15 @@ find_package(std_msgs REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 
 add_executable(stand_go2 src/stand_go2.cpp src/motor_crc.cpp)
+add_executable(policy_go2 src/policy_go2.cpp src/motor_crc.cpp)
 
 ament_target_dependencies(stand_go2 ${DEPENDENCY_LIST})
+ament_target_dependencies(policy_go2 ${DEPENDENCY_LIST})
 
 
 install(TARGETS 
         stand_go2
+        policy_go2
         ${PROJECT_NAME})
 
 
