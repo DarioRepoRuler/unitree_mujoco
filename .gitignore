@@ -3,3 +3,5 @@
 **/__pycache__/
 **/log/
 **/install/
+libtorch/
+libtorch_1_2/
