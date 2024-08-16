@@ -151,7 +151,7 @@ private:
 
         for (int i=0; i<3; i++)
         {
-            observations[i+45] = policy_commands[i]*2.0;
+            observations[i+45] = policy_commands[i]*1.5;
         }
         RCLCPP_INFO(this->get_logger(), "Policy commands: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
         
@@ -533,10 +533,10 @@ void listenForKeyPress() {
             // Handle special keys
             if (ch >= 256) {
                 switch (ch) {
-                    case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.1f, 1.0f); break;
-                    case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.1f, -1.0f); break;
-                    case 256 + 'C': policy_commands[2] =std::max(policy_commands[2]-0.1f, -0.7f); break;
-                    case 256 + 'D': policy_commands[2] =std::min(policy_commands[2]+0.1f, 0.7f); break;
+                    case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.05f, 1.0f); break;
+                    case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.05f, -1.0f); break;
+                    case 256 + 'C': policy_commands[2] =std::max(policy_commands[2]-0.05f, -0.7f); break;
+                    case 256 + 'D': policy_commands[2] =std::min(policy_commands[2]+0.05f, 0.7f); break;
                     // Add more cases for other special keys if needed
                 }
             } else {
