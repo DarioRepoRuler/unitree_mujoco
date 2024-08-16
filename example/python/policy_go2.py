@@ -24,6 +24,7 @@ def load(path, actor_critic:ActorCritic, device):
 
 
 cfg ={"actor_hidden_dim": 256,"actor_n_layers": 6,"critic_hidden_dim": 256,"critic_n_layers": 6,"std": 1.0}
+
 num_single_obs=48
 device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() else "cpu")
 obs = torch.zeros(num_single_obs).to(device)

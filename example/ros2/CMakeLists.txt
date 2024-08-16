@@ -67,11 +67,21 @@ install(TARGETS
         policy_go2
         ${PROJECT_NAME})
 
+# set_target_properties(policy_go2 PROPERTIES
+#         BUILD_WITH_INSTALL_RPATH TRUE
+#         INSTALL_RPATH_USE_LINK_PATH TRUE
+#         INSTALL_RPATH "${CMAKE_SOURCE_DIR}/libtorch/lib"
+#     )
 
+# set_target_properties(stand_go2 PROPERTIES
+#     BUILD_WITH_INSTALL_RPATH TRUE
+#     INSTALL_RPATH_USE_LINK_PATH TRUE
+#     INSTALL_RPATH "${CMAKE_SOURCE_DIR}/libtorch/lib"
+# )
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # uncomment the line when a copyright and license is not present in all source files
+  # uncomment the line when a copyright and license is not p
+  # the following line skips the linter which checks for copyrightsresent in all source files
   #set(ament_cmake_copyright_FOUND TRUE)
   # the following line skips cpplint (only works in a git repo)
   # uncomment the line when this package is not in a git repo

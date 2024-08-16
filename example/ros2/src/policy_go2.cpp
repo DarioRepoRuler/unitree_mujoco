@@ -12,6 +12,11 @@
 #include <fcntl.h>
 
 #include <torch/torch.h>
+#include <torch/script.h>
+
+#include <iostream>
+#include <memory>
+#include <filesystem>
 
 #define INFO_IMU 1          // Set 1 to info IMU states
 #define INFO_MOTOR 1        // Set 1 to info motor states
@@ -32,8 +37,15 @@ float policy_commands[3] = {0.0, 0.0, 0.0}; // Initialize policy_values
 class LowLevelNode : public rclcpp::Node
 {
 public:
-    LowLevelNode() : Node("low_level_node"),  dt(0.002), runing_time(0.0), phase(0.0)
-    {
+    LowLevelNode(std::shared_ptr<torch::jit::script::Module> model) 
+            : Node("low_level_node"),  
+            dt_fast(0.002),
+            dt_slow(0.02),
+            runing_time_slow(0.0),
+            runing_time_fast(0.0),
+            phase(0.0), 
+            model(model)    
+        {
         // Set up subscriber
         auto topic_low_name = "lf/lowstate";
         if (HIGH_FREQ)
@@ -55,9 +67,17 @@ public:
         cmd_puber_ = this->create_publisher<unitree_go::msg::LowCmd>("/lowcmd", 10);
 
         // Set up timer
-        timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(int(dt * 1000)),
-            std::bind(&LowLevelNode::timer_callback, this));
+        // timer_ = this->create_wall_timer(
+        //     std::chrono::milliseconds(int(dt * 1000)),
+        //     std::bind(&LowLevelNode::timer_callback, this));
+        
+        timer_slow_ = this->create_wall_timer(
+            std::chrono::duration<double>(dt_slow),
+            std::bind(&LowLevelNode::slow_timer_callback, this));
+        
+        timer_fast_ = this->create_wall_timer(
+            std::chrono::duration<double>(dt_fast),
+            std::bind(&LowLevelNode::fast_timer_callback, this));
 
         // Initialize lowcmd
         init_cmd();
@@ -97,10 +117,6 @@ private:
 
         if (INFO_MOTOR)
         {   
-            float default_motor_pos[12] = {-0.1, 0.9, -1.8, 
-                                            0.1, 0.9, -1.8,  
-                                            -0.1, 0.9, -1.8, 
-                                            0.1, 0.9, -1.8  };
 
             for (int i = 0; i < 12; i++)
             {
@@ -135,8 +151,9 @@ private:
 
         for (int i=0; i<3; i++)
         {
-            observations[i+45] = policy_commands[i];
+            observations[i+45] = policy_commands[i]*2.0;
         }
+        RCLCPP_INFO(this->get_logger(), "Policy commands: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
         
     }
 
@@ -144,7 +161,9 @@ private:
     {
         float glob_vel[3]  = {data->velocity[0], data->velocity[1], data->velocity[2]};
         float local_v[3];
-        rotate_vector(quaternion, glob_vel, local_v);
+        float quat_inv[4];
+        quat_invert(quaternion, quat_inv);
+        rotate_vector(quat_inv, glob_vel, local_v);
         for (int i = 0; i < 3; i++)
         {
             observations[i] = local_v[i]*2.0;
@@ -156,12 +175,43 @@ private:
         //         data->velocity[0], data->velocity[1], data->velocity[2], data->yaw_speed);
     }
 
-    void timer_callback()
-    {
-        runing_time += dt;
-        if (runing_time < 3.0)
+    void slow_timer_callback()
+    {   
+        runing_time_slow += dt_slow;
+        //RCLCPP_INFO(this->get_logger(), "\nSlow timer callback\n");
+        if(policy_id ==0)
         {
-            phase = tanh(runing_time / 1.2);
+            // Preprocess input data
+            preprocess_input();
+            
+            // Run the model
+            run_model();
+
+            // Postprocess and apply model output
+            postprocess_output();
+
+            for (int i = 0;i<12;i++){
+                target_dof_pos[i] = actions[i]*0.3 + default_motor_pos[i];
+            }
+        }
+
+        else
+        {
+            for (int i = 0;i<12;i++){
+                actions[i] =0.0;
+            }
+        }
+        
+        
+    }
+
+    void fast_timer_callback()
+    {
+        auto start_time = std::chrono::high_resolution_clock::now();
+        runing_time_fast += dt_fast;
+        if (runing_time_fast < 3.0 && policy_id ==0)
+        {
+            phase = tanh(runing_time_fast / 1.2);
             for (int i = 0; i < 12; i++)
             {
                 low_cmd_.motor_cmd[i].q = phase * stand_up_joint_pos_[i] + (1 - phase) * stand_down_joint_pos_[i];
@@ -171,30 +221,96 @@ private:
                 low_cmd_.motor_cmd[i].tau = 0;
             }
         }
-        else
-        {
-            phase = tanh((runing_time - 3.0) / 1.2);
+
+        else if (policy_id == 1)
+        {   
+            RCLCPP_INFO(this->get_logger(), "[D]own");
+
+            if (time_offset < 0.0) {
+                time_offset = runing_time_fast;
+            }
+            phase = tanh((runing_time_fast - time_offset) / 1.2);
             for (int i = 0; i < 12; i++)
             {
                 low_cmd_.motor_cmd[i].q = phase * stand_down_joint_pos_[i] + (1 - phase) * stand_up_joint_pos_[i];
                 low_cmd_.motor_cmd[i].dq = 0;
+                low_cmd_.motor_cmd[i].kp =30.0;
+                low_cmd_.motor_cmd[i].kd = 3.6;
+                low_cmd_.motor_cmd[i].tau = 0;
+            }
+            if (runing_time_fast > time_offset +2.0){
+                time_offset = -1.0;
+                runing_time_fast = 0.0;
+                policy_id = -1;
+            }
+        }
+        else if (runing_time_fast > 3.0 && policy_id == 0)
+        {
+            for (int i = 0; i < 12; i++)
+            {
+                low_cmd_.motor_cmd[i].q = target_dof_pos[i];
+                low_cmd_.motor_cmd[i].dq = 0;
                 low_cmd_.motor_cmd[i].kp = 50;
-                low_cmd_.motor_cmd[i].kd = 1.0;
+                low_cmd_.motor_cmd[i].kd =1.0;
                 low_cmd_.motor_cmd[i].tau = 0;
             }
         }
-        auto start_time = std::chrono::high_resolution_clock::now();
+
+        if(policy_id == -1)
+        {
+            RCLCPP_INFO(this->get_logger(), "StandBy");
+            for (int i = 0; i < 12; i++)
+            {
+                low_cmd_.motor_cmd[i].q = 0.0;
+                low_cmd_.motor_cmd[i].dq = 0;
+                low_cmd_.motor_cmd[i].kp = 0;
+                low_cmd_.motor_cmd[i].kd =3.5;
+                low_cmd_.motor_cmd[i].tau = 0;
+            }
+            runing_time_fast = 0.0;
+        }
+        
+
+        
         get_crc(low_cmd_);            // Check motor cmd crc
         cmd_puber_->publish(low_cmd_); // Publish lowcmd message
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-            // Print global variable values
+
         // RCLCPP_INFO(this->get_logger(), "Global Policy ID: %d", policy_id);
         // RCLCPP_INFO(this->get_logger(), "Global Policy Values: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
-
-        RCLCPP_INFO(this->get_logger(), "Time to publish command: %ld microseconds", duration);
+        //RCLCPP_INFO(this->get_logger(), "Runing time fast: %f", runing_time_fast);
+        //RCLCPP_INFO(this->get_logger(), "Time to publish command: %ld microseconds", duration);
         // Print observations
-        print_observations();
+        //print_observations();
+    }
+    
+    
+
+
+    void preprocess_input()
+    {
+        // Convert observations to tensor
+        model_input = torch::from_blob(observations, {1, 48}, torch::kFloat32);
+        model_input = model_input.clone(); // Ensure tensor is not shared
+    }
+
+    void run_model()
+    {
+        // Run the model
+        model_output = model->forward({model_input}).toTensor();
+    }
+
+    void postprocess_output()
+    {
+        // Convert tensor to array and use the output
+        auto output_data = model_output.accessor<float, 2>();
+        // Example: use the output data
+        for (int i = 0; i < 12; ++i)
+        {
+            actions[i] = output_data[0][i]; // Adjust as needed based on model output
+            observations[i+33] = actions[i];
+        }
     }
 
     private:
@@ -296,7 +412,9 @@ private:
     rclcpp::Subscription<unitree_go::msg::LowState>::SharedPtr suber_low_state;
     rclcpp::Subscription<unitree_go::msg::SportModeState>::SharedPtr suber_high_state;
     rclcpp::Publisher<unitree_go::msg::LowCmd>::SharedPtr cmd_puber_;
-    rclcpp::TimerBase::SharedPtr timer_;
+    //rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr timer_slow_;
+    rclcpp::TimerBase::SharedPtr timer_fast_;
 
     // Data members for subscriber
     unitree_go::msg::IMUState imu_;
@@ -307,6 +425,8 @@ private:
     float battery_current_;
     float observations[48];
     float quaternion[4];
+    float actions[12];
+    float target_dof_pos[12];
     //float rotation_matrix[3][3]; // just for rotation 
     float gravity_world[3] = {0.0, 0.0, -1.0};
 
@@ -316,9 +436,18 @@ private:
                                       0.00571868, 0.608813, -1.21763, -0.00571868, 0.608813, -1.21763};
     double stand_down_joint_pos_[12] = {0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375,
                                         0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375};
-    double dt;
-    double runing_time;
+    float default_motor_pos[12] = {-0.1, 0.9, -1.8, 0.1, 0.9, -1.8, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8  };
+    double dt_fast;
+    double dt_slow;
+    double runing_time_slow; 
+    double runing_time_fast;
+    double time_offset = -1.0;
     double phase;
+
+    // PyTorch model
+    std::shared_ptr<torch::jit::script::Module> model;
+    torch::Tensor model_input;
+    torch::Tensor model_output;
 
 };
 
@@ -404,10 +533,10 @@ void listenForKeyPress() {
             // Handle special keys
             if (ch >= 256) {
                 switch (ch) {
-                    case 256 + 'A': policy_commands[0] +=0.1f; break;
-                    case 256 + 'B': policy_commands[0] -=0.1f; break;
-                    case 256 + 'C': policy_commands[1] +=0.1f; break;
-                    case 256 + 'D': policy_commands[1] -=0.1f; break;
+                    case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.1f, 1.0f); break;
+                    case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.1f, -1.0f); break;
+                    case 256 + 'C': policy_commands[2] =std::max(policy_commands[2]-0.1f, -0.7f); break;
+                    case 256 + 'D': policy_commands[2] =std::min(policy_commands[2]+0.1f, 0.7f); break;
                     // Add more cases for other special keys if needed
                 }
             } else {
@@ -422,11 +551,26 @@ void listenForKeyPress() {
 
 int main(int argc, char **argv)
 {
+    torch::jit::script::Module model;
+    try {
+        // Get the path to the executable
+        std::filesystem::path exePath = std::filesystem::canonical(argv[0]);
+        std::filesystem::path modelPath = exePath.parent_path() / "policy_model.pt";
+        std::cout << "Model path: " << modelPath.string() << std::endl;
+        // Load the model
+        model = torch::jit::load(modelPath.string());
+    }
+    catch (const c10::Error& e) {
+        std::cerr << "Error loading the model\n";
+        return -1;
+    }
+    std::cout << "Model loaded successfully\n";
+
     std::cout << "Press enter to start";
     std::cin.get();
 
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<LowLevelNode>();
+    auto node = std::make_shared<LowLevelNode>(std::make_shared<torch::jit::script::Module>(model));
 
     // Start the keyboard listener thread
     std::thread keyListener(listenForKeyPress);

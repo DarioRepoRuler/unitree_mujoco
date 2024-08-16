@@ -11,34 +11,37 @@ class ActorCritic(nn.Module):
                  num_single_obs,
                  num_obs,
                  num_priv_obs,
-                 num_actions):
+                 num_actions,
+                 ):
         super().__init__()
 
         self.num_single_obs = num_single_obs
         self.num_obs = num_obs
         self.num_priv_obs = num_priv_obs
-
+        print(f"Config: {config}")
         self.actor = MLP(in_features=num_obs,
-                            hidden_features=config["actor_hidden_dim"],
-                            out_features=num_actions,
-                            n_layers=config["actor_n_layers"],
-                            act=nn.ELU(),
-                            output_act=nn.Tanh(),
-                            using_norm=False)
+                    hidden_features=config['actor_hidden_dim'],
+                    out_features=num_actions,
+                    n_layers=config['actor_n_layers'],
+                    act=nn.ELU(),
+                    output_act=nn.Tanh(),
+                    using_norm=False)
 
         self.critic = MLP(in_features=num_priv_obs,
-                          hidden_features=config["critic_hidden_dim"],
+                          hidden_features=config['critic_hidden_dim'],
                           out_features=1,
-                          n_layers=config["critic_n_layers"],
+                          n_layers=config['critic_n_layers'],
                           act=nn.ELU(),
                           output_act=None,
                           using_norm=False)
 
+        # print(f"Encoder: {self.encoder}")
+        # print(f"Decoder: {self.decoder}")
         print(f"Actor: {self.actor}")
         print(f"Critic: {self.critic}")
         
         # Action distribution
-        self.std_action = nn.Parameter(config["std"] * torch.ones(num_actions))
+        self.std_action = nn.Parameter(torch.ones(num_actions))
         self.distribution_action = None
         
         # disable args validation for speedup
