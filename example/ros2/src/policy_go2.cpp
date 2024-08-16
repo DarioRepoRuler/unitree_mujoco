@@ -164,9 +164,10 @@ private:
         float quat_inv[4];
         quat_invert(quaternion, quat_inv);
         rotate_vector(quat_inv, glob_vel, local_v);
+
         for (int i = 0; i < 3; i++)
         {
-            observations[i] = local_v[i]*2.0;
+            observations[i] = glob_vel[i]*2.0;
         }
         //RCLCPP_INFO(this->get_logger(), "Base velocity -- vx: %f; vy: %f; vz: %f", local_v[0], local_v[1], local_v[2]);
         // RCLCPP_INFO(this->get_logger(), "Position -- x: %f; y: %f; z: %f; body height: %f",
@@ -214,7 +215,7 @@ private:
             phase = tanh(runing_time_fast / 1.2);
             for (int i = 0; i < 12; i++)
             {
-                low_cmd_.motor_cmd[i].q = phase * stand_up_joint_pos_[i] + (1 - phase) * stand_down_joint_pos_[i];
+                low_cmd_.motor_cmd[i].q = phase * default_motor_pos[i] + (1 - phase) * stand_down_joint_pos_[i];
                 low_cmd_.motor_cmd[i].dq = 0;
                 low_cmd_.motor_cmd[i].kp = phase * 50.0 + (1 - phase) * 20.0;
                 low_cmd_.motor_cmd[i].kd = 1.0;
@@ -232,7 +233,7 @@ private:
             phase = tanh((runing_time_fast - time_offset) / 1.2);
             for (int i = 0; i < 12; i++)
             {
-                low_cmd_.motor_cmd[i].q = phase * stand_down_joint_pos_[i] + (1 - phase) * stand_up_joint_pos_[i];
+                low_cmd_.motor_cmd[i].q = phase * stand_down_joint_pos_[i] + (1 - phase) * default_motor_pos[i];
                 low_cmd_.motor_cmd[i].dq = 0;
                 low_cmd_.motor_cmd[i].kp =30.0;
                 low_cmd_.motor_cmd[i].kd = 3.6;
@@ -535,8 +536,8 @@ void listenForKeyPress() {
                 switch (ch) {
                     case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.05f, 1.0f); break;
                     case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.05f, -1.0f); break;
-                    case 256 + 'C': policy_commands[2] =std::max(policy_commands[2]-0.05f, -0.7f); break;
-                    case 256 + 'D': policy_commands[2] =std::min(policy_commands[2]+0.05f, 0.7f); break;
+                    case 256 + 'C': policy_commands[1] =std::max(policy_commands[1]-0.05f, -0.7f); break;
+                    case 256 + 'D': policy_commands[1] =std::min(policy_commands[1]+0.05f, 0.7f); break;
                     // Add more cases for other special keys if needed
                 }
             } else {
