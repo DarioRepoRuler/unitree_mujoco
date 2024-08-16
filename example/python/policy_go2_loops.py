@@ -19,8 +19,34 @@ from pynput import keyboard
 import threading
 
 def load(path, actor_critic:ActorCritic, device):
-        loaded_dict = torch.load(path, map_location=device, weights_only=True)
-        actor_critic.load_state_dict(loaded_dict['model_state_dict'])
+        try:
+            loaded_dict = torch.load(path, map_location=device, weights_only=True)
+            actor_critic.load_state_dict(loaded_dict['model_state_dict'])
+            #actor_critic.eval()
+            print(f"Model loaded successfully from {path}")
+        except Exception as e:
+                print(f"Error loading the model: {e}")
+                raise
+
+# Assuming `model` is already loaded from another script or function
+def convert_and_save_model(model, output_model_path):
+    """
+    Convert the PyTorch model to a TorchScript model and save it.
+    """
+    try:
+        # Use torch.jit.script() for models with dynamic behavior
+        scripted_model = torch.jit.script(model)
+
+        # Optionally, you can use torch.jit.trace() if the model has a static computation graph
+        # example_input = torch.zeros(1, 48)  # Replace with the actual input shape if known
+        # scripted_model = torch.jit.trace(model, example_input)
+
+        # Save the TorchScript model
+        scripted_model.save(output_model_path)
+        print(f"TorchScript model saved successfully at {output_model_path}")
+    except Exception as e:
+        print(f"Error converting or saving the model: {e}")
+        raise
 
 
 cfg ={"actor_hidden_dim": 256,"actor_n_layers": 6,"critic_hidden_dim": 256,"critic_n_layers": 6,"std": 1.0}
@@ -44,6 +70,8 @@ actor_critic = ActorCritic(cfg,
                             ).to(device)
 
 load(path=ckpt_path, actor_critic=actor_critic, device=device)
+
+#convert_and_save_model(actor_critic, os.path.join(os.getcwd(),"best_models/fixed_stand_still_cpp.pt"))
 print("Model loaded successfully")
 
 
@@ -68,7 +96,7 @@ default_pos = torch.tensor(
         ).to(device)
 
 dt_fast = 0.002
-dt_slow = 0.02
+dt_slow = 0.01
 runing_time = 0.0
 runing_time_slow = 0.0
 runing_time_fast = 0.0
@@ -332,11 +360,11 @@ if __name__ == '__main__':
             pub.Write(cmd)
             
             total_fast_time = time.perf_counter() - step_start_slow
-            #print(f"Total fast time: {total_fast_time}")
+            print(f"Total fast time: {total_fast_time}")
             time_until_next_step = dt_fast - (time.perf_counter() - step_start_fast)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
-        #print(f"Total slow time: {time.perf_counter() - step_start_slow}")
+        print(f"Total slow time: {time.perf_counter() - step_start_slow}")
         time_until_next_step = dt_slow - (time.perf_counter() - step_start_slow)
         if time_until_next_step > 0:
             time.sleep(time_until_next_step)

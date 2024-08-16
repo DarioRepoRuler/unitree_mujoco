@@ -7,19 +7,21 @@ class Dense(nn.Module):
         super().__init__()
         self.using_norm = using_norm
         self.linear = nn.Linear(in_features, out_features)
+        
+        # Always initialize self.norm, even if not used
         if self.using_norm:
             self.norm = nn.BatchNorm1d(out_features)
+        else:
+            self.norm = None  # Initialize as None
+
         self.activation = activation
 
     def forward(self, x):
-        if self.using_norm:
-            x = self.norm(self.linear(x))
-        else:
-            x = self.linear(x)
-
+        x = self.linear(x)
+        if self.using_norm and self.norm is not None:
+            x = self.norm(x)
         if self.activation is not None:
             x = self.activation(x)
-
         return x
 
 
