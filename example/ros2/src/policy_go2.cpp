@@ -149,11 +149,11 @@ private:
             // RCLCPP_INFO(this->get_logger(), "Battery state -- current: %f; voltage: %f", battery_current_, battery_voltage_);
         }
 
-        for (int i=0; i<3; i++)
-        {
-            observations[i+45] = policy_commands[i]*1.5;
-        }
-        RCLCPP_INFO(this->get_logger(), "Policy commands: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
+        // for (int i=0; i<3; i++)
+        // {
+        //     observations[i+45] = policy_commands[i]*2.0;
+        // }
+        // RCLCPP_INFO(this->get_logger(), "Policy commands: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
         
     }
 
@@ -167,7 +167,7 @@ private:
 
         for (int i = 0; i < 3; i++)
         {
-            observations[i] = glob_vel[i]*2.0;
+            observations[i] = local_v[i]*2.0;
         }
         //RCLCPP_INFO(this->get_logger(), "Base velocity -- vx: %f; vy: %f; vz: %f", local_v[0], local_v[1], local_v[2]);
         // RCLCPP_INFO(this->get_logger(), "Position -- x: %f; y: %f; z: %f; body height: %f",
@@ -177,7 +177,13 @@ private:
     }
 
     void slow_timer_callback()
-    {   
+    {
+        for (int i=0; i<3; i++)
+        {
+            observations[i+45] = policy_commands[i]*2.0;
+        }
+        RCLCPP_INFO(this->get_logger(), "Policy commands: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
+
         runing_time_slow += dt_slow;
         //RCLCPP_INFO(this->get_logger(), "\nSlow timer callback\n");
         if(policy_id ==0)
@@ -208,6 +214,7 @@ private:
 
     void fast_timer_callback()
     {
+        
         auto start_time = std::chrono::high_resolution_clock::now();
         runing_time_fast += dt_fast;
         if (runing_time_fast < 3.0 && policy_id ==0)
@@ -536,8 +543,8 @@ void listenForKeyPress() {
                 switch (ch) {
                     case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.05f, 1.0f); break;
                     case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.05f, -1.0f); break;
-                    case 256 + 'C': policy_commands[1] =std::max(policy_commands[1]-0.05f, -0.7f); break;
-                    case 256 + 'D': policy_commands[1] =std::min(policy_commands[1]+0.05f, 0.7f); break;
+                    case 256 + 'C': policy_commands[2] =std::max(policy_commands[2]-0.05f, -0.7f); break;
+                    case 256 + 'D': policy_commands[2] =std::min(policy_commands[2]+0.05f, 0.7f); break;
                     // Add more cases for other special keys if needed
                 }
             } else {
@@ -556,7 +563,7 @@ int main(int argc, char **argv)
     try {
         // Get the path to the executable
         std::filesystem::path exePath = std::filesystem::canonical(argv[0]);
-        std::filesystem::path modelPath = exePath.parent_path() / "policy_model.pt";
+        std::filesystem::path modelPath = exePath.parent_path() / "new_policy_model.pt";
         std::cout << "Model path: " << modelPath.string() << std::endl;
         // Load the model
         model = torch::jit::load(modelPath.string());

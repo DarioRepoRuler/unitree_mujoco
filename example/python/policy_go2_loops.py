@@ -12,7 +12,7 @@ from unitree_sdk2py.utils.crc import CRC
 
 import torch
 import os
-from model.actor_critic import ActorCritic
+from model.actor_critic_new import ActorCritic
 from time import sleep
 import keyboard
 from pynput import keyboard
@@ -22,7 +22,7 @@ def load(path, actor_critic:ActorCritic, device):
         try:
             loaded_dict = torch.load(path, map_location=device, weights_only=True)
             actor_critic.load_state_dict(loaded_dict['model_state_dict'])
-            #actor_critic.eval()
+            actor_critic.eval()
             print(f"Model loaded successfully from {path}")
         except Exception as e:
                 print(f"Error loading the model: {e}")
@@ -55,7 +55,7 @@ device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() el
 obs = torch.zeros(num_single_obs).to(device)
 dq = torch.zeros(12).to(device)
 
-ckpt_path = os.path.join(os.getcwd(),"best_models/fixed_stand_still.pt")
+ckpt_path = os.path.join(os.getcwd(),"best_models/more_rando.pt")
 if not os.path.exists(ckpt_path):
     assert False, f"Model checkpoint not found at {ckpt_path}"
 
@@ -71,7 +71,7 @@ actor_critic = ActorCritic(cfg,
 
 load(path=ckpt_path, actor_critic=actor_critic, device=device)
 
-#convert_and_save_model(actor_critic, os.path.join(os.getcwd(),"best_models/fixed_stand_still_cpp.pt"))
+convert_and_save_model(actor_critic, os.path.join(os.getcwd(),"best_models/new_policy_model.pt"))
 print("Model loaded successfully")
 
 
@@ -274,7 +274,7 @@ if __name__ == '__main__':
         total_fast_time = 0.0
 
         if policy_id[0]==0:
-            actions = actor_critic.act_inference(obs)
+            actions = actor_critic.forward(obs)
             target_dof_pos = actions*0.3 + default_pos[7:]
             last_action = actions
         
