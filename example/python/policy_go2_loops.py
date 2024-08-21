@@ -55,7 +55,7 @@ device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() el
 obs = torch.zeros(num_single_obs).to(device)
 dq = torch.zeros(12).to(device)
 
-ckpt_path = os.path.join(os.getcwd(),"best_models/more_rando.pt")
+ckpt_path = os.path.join(os.getcwd(),"best_models/maybe_best1.pt") #more_rando
 if not os.path.exists(ckpt_path):
     assert False, f"Model checkpoint not found at {ckpt_path}"
 
@@ -142,7 +142,7 @@ def LowStateHandler(msg: LowState_):
 
     quaternion[:] = torch.tensor(msg.imu_state.quaternion)
     ang_vel = np.array(msg.imu_state.gyroscope)
-    #local_w = rotate_vector(quat_invert(np.array(quaternion)), ang_vel)
+    local_w = rotate_vector(quat_invert(np.array(quaternion)), ang_vel)
     obs[3:6]=torch.tensor(ang_vel).to(device) * 0.25
     proj_gravity = get_gravity_vector(np.array(quaternion))
     obs[6:9]=torch.tensor(proj_gravity).to(device)
@@ -168,20 +168,20 @@ def on_press(key):
     try:
         # Check if the key is one of the arrow keys
         if key == keyboard.Key.up:
-            command[0] = torch.clamp(command[0]+0.1, -1.0, 1.0)
+            command[0] = torch.clamp(command[0]+0.1, -1.2, 1.2)
             #command[2] = 0.0
             print(f"Command: {command}")
         elif key == keyboard.Key.down:
-            command[0] = torch.clamp(command[0]-0.1, -1.0, 1.0)
+            command[0] = torch.clamp(command[0]-0.1, -1.2, 1.2)
             #command[2] = 0.0
             print(f"Command: {command}")
         elif key == keyboard.Key.left:
             #command[0] = 0.0
-            command[2] = torch.clamp(command[2]+0.1, -.7, .7)
+            command[2] = torch.clamp(command[2]+0.1, -1.2, 1.2)
             print(f"Command: {command}")
         elif key == keyboard.Key.right:
             #command[0] = 0.0
-            command[2] = torch.clamp(command[2]-0.1, -.7, .7)
+            command[2] = torch.clamp(command[2]-0.1, -1.2, 1.2)
             print(f"Command: {command}")
         elif key.char == 'e':
             command[:] = 0.0
@@ -220,7 +220,7 @@ if __name__ == '__main__':
         ChannelFactoryInitialize(0, sys.argv[1])
     
     last_action = torch.zeros(12).to(device)
-    obs[45:]=command
+    obs[45:]=command*2.0
 
     # Create a publisher to publish the data defined in UserData class
     pub = ChannelPublisher("rt/lowcmd", LowCmd_)
@@ -293,16 +293,16 @@ if __name__ == '__main__':
                 for i in range(12):
                     cmd.motor_cmd[i].q = phase * stand_up_joint_pos[i] + (
                         1 - phase) * stand_down_joint_pos[i]
-                    cmd.motor_cmd[i].kp = phase * 50.0 + (1 - phase) * 20.0
+                    cmd.motor_cmd[i].kp = phase * 55.0 + (1 - phase) * 20.0
                     cmd.motor_cmd[i].dq = 0.0
-                    cmd.motor_cmd[i].kd = 3.6
+                    cmd.motor_cmd[i].kd = 1.0
                     cmd.motor_cmd[i].tau = 0.0
 
             # Execute policy
             elif (runing_time_slow > 3.0) and policy_id[0]==0:
                 for i in range(12):
                     cmd.motor_cmd[i].q = target_dof_pos[i] #phase * stand_down_joint_pos[i] + (1 - phase) * stand_up_joint_pos[i] #
-                    cmd.motor_cmd[i].kp = 50.0
+                    cmd.motor_cmd[i].kp = 55.0
                     cmd.motor_cmd[i].dq = 0.0
                     cmd.motor_cmd[i].kd = 1.
                     cmd.motor_cmd[i].tau = 0.0
@@ -316,7 +316,7 @@ if __name__ == '__main__':
                     cmd.motor_cmd[i].q = 0.0
                     cmd.motor_cmd[i].kp = 0.0
                     cmd.motor_cmd[i].dq = 0.0
-                    cmd.motor_cmd[i].kd =3.5
+                    cmd.motor_cmd[i].kd =1.0
                     cmd.motor_cmd[i].tau = 0.0
                 if runing_time_slow > timeoffset + 2.0:
                     exit(1)
@@ -360,11 +360,11 @@ if __name__ == '__main__':
             pub.Write(cmd)
             
             total_fast_time = time.perf_counter() - step_start_slow
-            print(f"Total fast time: {total_fast_time}")
+            #print(f"Total fast time: {total_fast_time}")
             time_until_next_step = dt_fast - (time.perf_counter() - step_start_fast)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
-        print(f"Total slow time: {time.perf_counter() - step_start_slow}")
+        #print(f"Total slow time: {time.perf_counter() - step_start_slow}")
         time_until_next_step = dt_slow - (time.perf_counter() - step_start_slow)
         if time_until_next_step > 0:
             time.sleep(time_until_next_step)
