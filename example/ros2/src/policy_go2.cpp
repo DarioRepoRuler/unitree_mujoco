@@ -526,20 +526,25 @@ void listenForKeyPress() {
                 break;
             }
             
-            if (ch == 's' || ch == 'S') {
+            else if (ch == 's' || ch == 'S') {
                 policy_id = 0;
                 policy_commands[0] = 0.0;
                 policy_commands[1] = 0.0;
                 policy_commands[2] = 0.0;
             }
-            if (ch == 'd' || ch == 'D') {
+            else if (ch == 'd' || ch == 'D') {
                 policy_id = 1;
                 policy_commands[0] = 0.0;
                 policy_commands[1] = 0.0;
                 policy_commands[2] = 0.0;
             }
+            else if (ch=='0') {
+                policy_commands[0] = 0.0;
+                policy_commands[1] = 0.0;
+                policy_commands[2] = 0.0;
+            }
             // Handle special keys
-            if (ch >= 256) {
+            else if (ch >= 256) {
                 switch (ch) {
                     case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.05f, 1.2f); break;
                     case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.05f, -1.2f); break;
