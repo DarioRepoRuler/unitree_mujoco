@@ -55,7 +55,7 @@ device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() el
 obs = torch.zeros(num_single_obs).to(device)
 dq = torch.zeros(12).to(device)
 
-ckpt_path = os.path.join(os.getcwd(),"best_models/maybe_best1.pt") #more_rando
+ckpt_path = os.path.join(os.getcwd(),"best_models/rando_all1.pt") #more_rando
 if not os.path.exists(ckpt_path):
     assert False, f"Model checkpoint not found at {ckpt_path}"
 
@@ -71,7 +71,7 @@ actor_critic = ActorCritic(cfg,
 
 load(path=ckpt_path, actor_critic=actor_critic, device=device)
 
-convert_and_save_model(actor_critic, os.path.join(os.getcwd(),"best_models/new_policy_model.pt"))
+convert_and_save_model(actor_critic, os.path.join(os.getcwd(),"best_models/rando_all1_ts.pt"))
 print("Model loaded successfully")
 
 
@@ -103,7 +103,7 @@ runing_time_fast = 0.0
 crc = CRC()
 
 # I figured out that np arrays are not overwritten by the subscriber callback, the tensors however are infact overwritten!
-command = torch.tensor([0.0, 0.0 , 0.0]).to(device)*2.0
+command = torch.tensor([0.0, 0.0 , 0.0]).to(device)
 policy_id = torch.tensor((0,)).to(device)
 quaternion = torch.zeros(4)
 
@@ -195,6 +195,8 @@ def on_press(key):
         
         elif key.char == 's':
             policy_id[0] = 0
+        elif key.char == '0':
+            command[:]=0.0
 
         
         # Check if the 'q' key is pressed to stop the loop
@@ -262,7 +264,7 @@ if __name__ == '__main__':
     listener_thread.start()
 
     while True:
-        obs[45:]=command
+        obs[45:]=command *2.0
         obs[33:45]=last_action
 
         step_start_slow = time.perf_counter()

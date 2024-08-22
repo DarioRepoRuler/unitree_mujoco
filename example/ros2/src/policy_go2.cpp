@@ -546,8 +546,8 @@ void listenForKeyPress() {
             // Handle special keys
             else if (ch >= 256) {
                 switch (ch) {
-                    case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.05f, 1.2f); break;
-                    case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.05f, -1.2f); break;
+                    case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.025f, 1.2f); break;
+                    case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.025f, -1.2f); break;
                     case 256 + 'C': policy_commands[2] =std::max(policy_commands[2]-0.05f, -1.2f); break;
                     case 256 + 'D': policy_commands[2] =std::min(policy_commands[2]+0.05f, 1.2f); break;
                     // Add more cases for other special keys if needed
@@ -556,7 +556,7 @@ void listenForKeyPress() {
                 std::cout << "Key pressed: " << static_cast<char>(ch) << "\n";
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small sleep to prevent busy waiting
+        std::this_thread::sleep_for(std::chrono::milliseconds(5)); // Small sleep to prevent busy waiting
     }
 }
 
@@ -568,7 +568,7 @@ int main(int argc, char **argv)
     try {
         // Get the path to the executable
         std::filesystem::path exePath = std::filesystem::canonical(argv[0]);
-        std::filesystem::path modelPath = exePath.parent_path() / "new_policy_model.pt";
+        std::filesystem::path modelPath = exePath.parent_path() / "rando_all1_ts.pt";
         std::cout << "Model path: " << modelPath.string() << std::endl;
         // Load the model
         model = torch::jit::load(modelPath.string());
