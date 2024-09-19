@@ -51,13 +51,16 @@ set (
 
 add_executable(stand_go2 src/stand_go2.cpp src/motor_crc.cpp)
 add_executable(policy_go2 src/policy_go2.cpp src/motor_crc.cpp)
+add_executable(policy_general src/policy_general.cpp src/motor_crc.cpp)
 
 ament_target_dependencies(stand_go2 ${DEPENDENCY_LIST})
 ament_target_dependencies(policy_go2 ${DEPENDENCY_LIST} )
+ament_target_dependencies(policy_general ${DEPENDENCY_LIST} )
 
 
 target_link_libraries(stand_go2  ${TORCH_LIBRARIES})
 target_link_libraries(policy_go2  ${TORCH_LIBRARIES})
+target_link_libraries(policy_general  ${TORCH_LIBRARIES})
 
 set_property(TARGET stand_go2 PROPERTY CXX_STANDARD 17)
 
@@ -65,6 +68,7 @@ set_property(TARGET stand_go2 PROPERTY CXX_STANDARD 17)
 install(TARGETS 
         stand_go2
         policy_go2
+        policy_general
         ${PROJECT_NAME})
 
 # set_target_properties(policy_go2 PROPERTIES

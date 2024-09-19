@@ -1,0 +1,43 @@
+
+actor:
+  use_lstm: False
+  hidden_dim: 256
+  n_layers: 6
+  init_std: 1.0
+
+critic:
+  hidden_dim: 256
+  n_layers: 6
+
+stiff_network:
+  hidden_dim: 256
+  n_layers: 2 
+
+use_encoder_decoder: False
+encoding_arch:
+  latent_dim: 40
+  encoder:
+    hidden_dim: 256
+    n_layers: 1
+  decoder:
+    hidden_dim: 124
+    n_layers: 2
+denoise_loss_coef: 1.0
+latent_loss_coef: 0.02
+lr_encoder: 1e-3
+
+num_epochs: 5 
+num_epochs_encoder: 4
+num_batches: 4
+clip_param: 0.2
+gamma: 0.99
+lamb: 0.95
+value_loss_coef: 1.0
+
+entropy_coef: 0.005
+
+lr: 1e-4
+max_grad_norm: 1.0
+use_clipped_value_loss: True
+schedule: "adaptive"
+desired_kl: 0.01
