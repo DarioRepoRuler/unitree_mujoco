@@ -12,25 +12,51 @@ from unitree_sdk2py.utils.crc import CRC
 
 import torch
 import os
-from model.actor_critic import ActorCritic
+from model.actor_critic_new import ActorCritic
 from time import sleep
 import keyboard
 from pynput import keyboard
 import threading
 
 def load(path, actor_critic:ActorCritic, device):
-        loaded_dict = torch.load(path, map_location=device, weights_only=True)
-        actor_critic.load_state_dict(loaded_dict['model_state_dict'])
+        try:
+            loaded_dict = torch.load(path, map_location=device, weights_only=True)
+            actor_critic.load_state_dict(loaded_dict['model_state_dict'])
+            actor_critic.eval()
+            print(f"Model loaded successfully from {path}")
+        except Exception as e:
+                print(f"Error loading the model: {e}")
+                raise
+
+# Assuming `model` is already loaded from another script or function
+def convert_and_save_model(model, output_model_path):
+    """
+    Convert the PyTorch model to a TorchScript model and save it.
+    """
+    try:
+        # Use torch.jit.script() for models with dynamic behavior
+        scripted_model = torch.jit.script(model)
+
+        # Optionally, you can use torch.jit.trace() if the model has a static computation graph
+        # example_input = torch.zeros(1, 48)  # Replace with the actual input shape if known
+        # scripted_model = torch.jit.trace(model, example_input)
+
+        # Save the TorchScript model
+        scripted_model.save(output_model_path)
+        print(f"TorchScript model saved successfully at {output_model_path}")
+    except Exception as e:
+        print(f"Error converting or saving the model: {e}")
+        raise
 
 
 cfg ={"actor_hidden_dim": 256,"actor_n_layers": 6,"critic_hidden_dim": 256,"critic_n_layers": 6,"std": 1.0}
-
 num_single_obs=48
+num_single_priv_obs = 48
 device = torch.device("cpu")#torch.device("cuda" if torch.cuda.is_available() else "cpu")
 obs = torch.zeros(num_single_obs).to(device)
 dq = torch.zeros(12).to(device)
 
-ckpt_path = os.path.join(os.getcwd(),"best_models/fixed_stand_still.pt")
+ckpt_path = os.path.join(os.getcwd(),"best_models/rando_all1.pt") #trained_terrain_l2
 if not os.path.exists(ckpt_path):
     assert False, f"Model checkpoint not found at {ckpt_path}"
 
@@ -40,11 +66,13 @@ print(f"Loading policy model {ckpt_path}")
 actor_critic = ActorCritic(cfg,
                             num_single_obs=num_single_obs,
                             num_obs=num_single_obs,
-                            num_priv_obs=num_single_obs,
+                            num_priv_obs=num_single_priv_obs,
                             num_actions=12
                             ).to(device)
 
 load(path=ckpt_path, actor_critic=actor_critic, device=device)
+
+#convert_and_save_model(actor_critic, os.path.join(os.getcwd(),"best_models/rando_all15_ts.pt"))
 print("Model loaded successfully")
 
 
@@ -68,12 +96,15 @@ default_pos = torch.tensor(
              0.1, 0.9, -1.8]  #RL
         ).to(device)
 
-dt = 0.002
+dt_fast = 0.002
+dt_slow = 0.01
 runing_time = 0.0
+runing_time_slow = 0.0
+runing_time_fast = 0.0
 crc = CRC()
 
 # I figured out that np arrays are not overwritten by the subscriber callback, the tensors however are infact overwritten!
-command = torch.tensor([0.0, 0.0 , 0.0]).to(device)*2.0
+command = torch.tensor([0.0, 0.0 , 0.0]).to(device)
 policy_id = torch.tensor((0,)).to(device)
 quaternion = torch.zeros(4)
 
@@ -112,7 +143,7 @@ def LowStateHandler(msg: LowState_):
 
     quaternion[:] = torch.tensor(msg.imu_state.quaternion)
     ang_vel = np.array(msg.imu_state.gyroscope)
-    #local_w = rotate_vector(quat_invert(np.array(quaternion)), ang_vel)
+    local_w = rotate_vector(quat_invert(np.array(quaternion)), ang_vel)
     obs[3:6]=torch.tensor(ang_vel).to(device) * 0.25
     proj_gravity = get_gravity_vector(np.array(quaternion))
     obs[6:9]=torch.tensor(proj_gravity).to(device)
@@ -138,20 +169,20 @@ def on_press(key):
     try:
         # Check if the key is one of the arrow keys
         if key == keyboard.Key.up:
-            command[0] = torch.clamp(command[0]+0.1, -1.0, 1.0)
+            command[0] = torch.clamp(command[0]+0.1, -1.2, 1.2)
             #command[2] = 0.0
             print(f"Command: {command}")
         elif key == keyboard.Key.down:
-            command[0] = torch.clamp(command[0]-0.1, -1.0, 1.0)
+            command[0] = torch.clamp(command[0]-0.1, -1.2, 1.2)
             #command[2] = 0.0
             print(f"Command: {command}")
         elif key == keyboard.Key.left:
             #command[0] = 0.0
-            command[2] = torch.clamp(command[2]+0.1, -.7, .7)
+            command[2] = torch.clamp(command[2]+0.1, -1.2, 1.2)
             print(f"Command: {command}")
         elif key == keyboard.Key.right:
             #command[0] = 0.0
-            command[2] = torch.clamp(command[2]-0.1, -.7, .7)
+            command[2] = torch.clamp(command[2]-0.1, -1.2, 1.2)
             print(f"Command: {command}")
         elif key.char == 'e':
             command[:] = 0.0
@@ -165,6 +196,8 @@ def on_press(key):
         
         elif key.char == 's':
             policy_id[0] = 0
+        elif key.char == '0':
+            command[:]=0.0
 
         
         # Check if the 'q' key is pressed to stop the loop
@@ -190,7 +223,7 @@ if __name__ == '__main__':
         ChannelFactoryInitialize(0, sys.argv[1])
     
     last_action = torch.zeros(12).to(device)
-    obs[45:]=command
+    obs[45:]=command*2.0
 
     # Create a publisher to publish the data defined in UserData class
     pub = ChannelPublisher("rt/lowcmd", LowCmd_)
@@ -232,93 +265,110 @@ if __name__ == '__main__':
     listener_thread.start()
 
     while True:
-        obs[45:]=command
+        obs[45:]=command *2.0
         obs[33:45]=last_action
-        
-        step_start = time.perf_counter()
 
-        runing_time += dt
-        #print("runing_time: ", runing_time)
-        #print(f"Policy ID: {policy_id[0]}")
-        
-        if (runing_time < 3.0) and policy_id[0]==0:
-            # Stand up in first 3 second
+        step_start_slow = time.perf_counter()
 
-            # Total time for standing up or standing down is about 1.2s
-            phase = np.tanh(runing_time / 1.2)
-            for i in range(12):
-                cmd.motor_cmd[i].q = phase * stand_up_joint_pos[i] + (
-                    1 - phase) * stand_down_joint_pos[i]
-                cmd.motor_cmd[i].kp = phase * 50.0 + (1 - phase) * 20.0
-                cmd.motor_cmd[i].dq = 0.0
-                cmd.motor_cmd[i].kd = 3.6
-                cmd.motor_cmd[i].tau = 0.0
-                #print(f"KP: {phase * 25.0 + (1 - phase) * 20.0}")
-                #last_action[i]=(cmd.motor_cmd[i].q/0.3 - default_pos[7+i])
         
-        elif (runing_time > 3.0) and policy_id[0]==0:
-            # Then stand down
-            if ctrl_cnt==9 or ctrl_cnt==-1:
-                actions = actor_critic.act_inference(obs)
-                target_dof_pos = actions*0.3 + default_pos[7:]
-                last_action = actions
-                ctrl_cnt=0
-            else:
-                target_dof_pos = last_action*0.3 + default_pos[7:]
-                ctrl_cnt+=1
-           
-            #print(f"Target joint positions: {target_dof_pos}")
-            #phase = np.tanh((runing_time - 3.0) / 1.2)
-            for i in range(12):
-                cmd.motor_cmd[i].q = target_dof_pos[i] #phase * stand_down_joint_pos[i] + (1 - phase) * stand_up_joint_pos[i] #
-                cmd.motor_cmd[i].kp = 50.0
-                cmd.motor_cmd[i].dq = 0.0
-                cmd.motor_cmd[i].kd = 1.
-                cmd.motor_cmd[i].tau = 0.0
         
-        elif policy_id[0]==1:
-            # Enter damping mode
-            print(f"[E]mergency: in damping mode")
-            for i in range(12):
+        runing_time_slow += dt_slow
+        runing_time_fast =0.0
+        total_fast_time = 0.0
+
+        if policy_id[0]==0:
+            actions = actor_critic.forward(obs)
+            target_dof_pos = actions*0.3 + default_pos[7:]
+            last_action = actions
+        
+        while total_fast_time < dt_slow:
+
+
+            step_start_fast = time.perf_counter()
+
+            runing_time_fast += dt_fast
+            
+            if (runing_time_slow < 3.0) and policy_id[0]==0:
+                # Stand up in first 3 ssecond
+                print(f"Stand up")
+                # Total time for standing up or standing down is about 1.2s
+                phase = np.tanh(runing_time_slow / 1.2)
+                for i in range(12):
+                    cmd.motor_cmd[i].q = phase * stand_up_joint_pos[i] + (
+                        1 - phase) * stand_down_joint_pos[i]
+
+                    cmd.motor_cmd[i].kp = phase * 55.0 + (1 - phase) * 20.0
+                    cmd.motor_cmd[i].dq = 0.0
+                    cmd.motor_cmd[i].kd = 1.0
+                    cmd.motor_cmd[i].tau = 0.0
+
+            # Execute policy
+            elif (runing_time_slow > 3.0) and policy_id[0]==0:
+                for i in range(12):
+                    cmd.motor_cmd[i].q = target_dof_pos[i] #phase * stand_down_joint_pos[i] + (1 - phase) * stand_up_joint_pos[i] #
+                    cmd.motor_cmd[i].kp = 55.0
+                    cmd.motor_cmd[i].dq = 0.0
+                    cmd.motor_cmd[i].kd = 1.
+                    cmd.motor_cmd[i].tau = 0.0
+            
+            elif policy_id[0]==1:
+                # Enter damping mode
+                print(f"[E]mergency: in damping mode")
+                if timeoffset is None:
+                    timeoffset = runing_time_slow
+                for i in range(12):
+                    cmd.motor_cmd[i].q = 0.0
+                    cmd.motor_cmd[i].kp = 0.0
+                    cmd.motor_cmd[i].dq = 0.0
+                    cmd.motor_cmd[i].kd =1.0
+                    cmd.motor_cmd[i].tau = 0.0
+                if runing_time_slow > timeoffset + 2.0:
+                    exit(1)
+
+                
+
+            elif policy_id==2:
+                command[:] = 0.0
+                print(f"[D]own")
+                if timeoffset is None:
+                    timeoffset = runing_time_slow
+                # Then stand down
+                phase = np.tanh((runing_time_slow - timeoffset) / 1.2)
+                
+                for i in range(12):
+                    cmd.motor_cmd[i].q = phase * stand_down_joint_pos[i] + (
+                        1 - phase) * stand_up_joint_pos[i]
+                    cmd.motor_cmd[i].kp = 30.0
+                    cmd.motor_cmd[i].dq = 0.0
+                    cmd.motor_cmd[i].kd = 1.0
+                    cmd.motor_cmd[i].tau = 0.0
+
+                if runing_time_slow > timeoffset + 2.0:
+                    runing_time_slow = 0.0
+                    policy_id[0]=-1
+                    timeoffset = None
+
+
+            
+            elif policy_id[0]==-1:
+                print(f"StandBy")
+                runing_time_slow = 0.0
                 cmd.motor_cmd[i].q = 0.0
                 cmd.motor_cmd[i].kp = 0.0
                 cmd.motor_cmd[i].dq = 0.0
                 cmd.motor_cmd[i].kd =3.5
                 cmd.motor_cmd[i].tau = 0.0
-
-        elif (runing_time > 3.0) and policy_id==2:
-            command[:] = 0.0
-            print(f"[D]own")
-            if timeoffset is None:
-                timeoffset = runing_time
-            # Laying down
-            phase = np.tanh((runing_time - timeoffset) / 1.2)
-            for i in range(12):
-                cmd.motor_cmd[i].q = phase * stand_down_joint_pos[i] + (1 - phase) * stand_up_joint_pos[i]
-                cmd.motor_cmd[i].kp = phase * 20.0 + (1 - phase) * 50.0
-                cmd.motor_cmd[i].dq = 0.0
-                cmd.motor_cmd[i].kd = 1.0
-                cmd.motor_cmd[i].tau = 0.0
-            #print(f"Kp for laying down: {phase * 20.0 + (1 - phase) * 30.0}")
+                               
             
-            if runing_time > timeoffset + 2.0:
-                runing_time = 0.0
-                policy_id[0]=-1
-                timeoffset = None
-
-        elif policy_id[0]==-1:
-            print(f"StandBy")
-            runing_time = 0.0
-            cmd.motor_cmd[i].q = 0.0
-            cmd.motor_cmd[i].kp = 0.0
-            cmd.motor_cmd[i].dq = 0.0
-            cmd.motor_cmd[i].kd =3.5
-            cmd.motor_cmd[i].tau = 0.0
+            cmd.crc = crc.Crc(cmd)
+            pub.Write(cmd)
             
-            
-        cmd.crc = crc.Crc(cmd)
-        pub.Write(cmd)
-
-        time_until_next_step = dt - (time.perf_counter() - step_start)
+            total_fast_time = time.perf_counter() - step_start_slow
+            #print(f"Total fast time: {total_fast_time}")
+            time_until_next_step = dt_fast - (time.perf_counter() - step_start_fast)
+            if time_until_next_step > 0:
+                time.sleep(time_until_next_step)
+        #print(f"Total slow time: {time.perf_counter() - step_start_slow}")
+        time_until_next_step = dt_slow - (time.perf_counter() - step_start_slow)
         if time_until_next_step > 0:
             time.sleep(time_until_next_step)
