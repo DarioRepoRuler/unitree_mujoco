@@ -46,7 +46,7 @@ public:
             runing_time_slow(0.0),
             runing_time_fast(0.0),
             phase(0.0),
-            control_type("P"), 
+            control_type("VIC_2"), 
             model(model)    
         {
         // Set up subscriber
@@ -630,7 +630,7 @@ int main(int argc, char **argv)
     try {
         // Get the path to the executable
         std::filesystem::path exePath = std::filesystem::canonical(argv[0]);
-        std::filesystem::path modelPath = exePath.parent_path() / "vic3_model.pt";
+        std::filesystem::path modelPath = exePath.parent_path() / "vic2_model.pt";
         std::cout << "Model path: " << modelPath.string() << std::endl;
         // Load the model
         model = torch::jit::load(modelPath.string());

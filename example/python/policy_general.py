@@ -23,6 +23,7 @@ import yaml
 
 class PolicyVicClass:
     def __init__(self, cfg):
+        self.cfg = cfg
         self.device = torch.device("cpu")
         self.stiff_range = cfg.env.control.stiff_range
         self.p_gains = torch.ones(12) * cfg.env.control.p_gain
@@ -66,13 +67,15 @@ class PolicyVicClass:
             1.22187, -2.44375, -0.0473455, 1.22187, -2.44375
         ], dtype=float)
 
-        self.default_pos = torch.tensor(
-            [0, 0, 0.35, 1, 0, 0, 0,  # base coord + quat, former height 0.27
-             -0.1, 0.9, -1.8,  # FR
-             0.1, 0.9, -1.8,  # FL
-             -0.1, 0.9, -1.8,  # RR
-             0.1, 0.9, -1.8]  # RL
-        ).to(self.device)
+        self.default_pos = torch.tensor(self.cfg.env.default_pos).to(self.device)
+            # torch.tensor(
+            # [0, 0, 0.35, 1, 0, 0, 0,  # base coord + quat, former height 0.27
+            #  -0.1, 0.9, -1.8,  # FR
+            #  0.1, 0.9, -1.8,  # FL
+            #  -0.1, 0.9, -1.8,  # RR
+            #  0.1, 0.9, -1.8]  # RL
+        #).to(self.device)
+        self.action_scale = self.cfg.env.action_scale
 
         self.dt_fast = 0.002
         self.dt_slow = 0.02
@@ -103,7 +106,7 @@ class PolicyVicClass:
 
         self.actor_critic = actor_critic
         print("Model loaded successfully")
-        output_model_path = os.path.join(os.getcwd(), "vic1_model.pt")
+        output_model_path = os.path.join(os.getcwd(), "vic2_model.pt")
         self.convert_and_save_model(self.actor_critic, output_model_path)
 
 
@@ -274,7 +277,7 @@ class PolicyVicClass:
                 print(f"Observations : {self.obs}")
                 actions = self.actor_critic.forward(self.obs)
                 last_action = actions
-                target_dof_pos = actions[:12] * 0.3 + self.default_pos[7:]
+                target_dof_pos = actions[:12] * self.action_scale + self.default_pos[7:]
                 Kp= torch.ones(12)
                 if self.control_mode == "VIC_1":
                     action_stiffness = torch.tile(actions[12:], (4,))
