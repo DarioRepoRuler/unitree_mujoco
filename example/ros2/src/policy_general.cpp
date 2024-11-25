@@ -178,7 +178,8 @@ private:
         {
             observations[i] = local_v[i]*2.0;
         }
-        //RCLCPP_INFO(this->get_logger(), "Base velocity -- vx: %f; vy: %f; vz: %f", local_v[0], local_v[1], local_v[2]);
+
+        RCLCPP_INFO(this->get_logger(), "Base velocity -- vx: %f; vy: %f; vz: %f", local_v[0], local_v[1], local_v[2]);
         // RCLCPP_INFO(this->get_logger(), "Position -- x: %f; y: %f; z: %f; body height: %f",
         //         data->position[0], data->position[1], data->position[2], data->body_height);
         // RCLCPP_INFO(this->get_logger(), "Velocity -- vx: %f; vy: %f; vz: %f; yaw: %f",
@@ -192,7 +193,7 @@ private:
         {
             observations[i+45+offset] = policy_commands[i]*2.0;
         }
-        RCLCPP_INFO(this->get_logger(), "Policy commands: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
+        //RCLCPP_INFO(this->get_logger(), "Policy commands: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
 
         runing_time_slow += dt_slow;
         //RCLCPP_INFO(this->get_logger(), "\nSlow timer callback\n");
@@ -229,7 +230,7 @@ private:
                     for (int j = 0;j<3;j++){ // j is the group hip/thigh/calf
                         target_kp[i*3+j] = std_stiffness* (m + r * actions[i+12]);
                         target_kd[i*3+j] = 0.2 * sqrt(target_kp[i+j]);
-                        std::cout<< "Index" << i+j << " | Stiffness: " << target_kp[i*3+j] << " | Damping: " << target_kd[i*3+j] << std::endl;
+                        //std::cout<< "Index" << i+j << " | Stiffness: " << target_kp[i*3+j] << " | Damping: " << target_kd[i*3+j] << std::endl;
                     }                  
                 }
                 
@@ -272,7 +273,7 @@ private:
 
         else if (policy_id == 1)
         {   
-            RCLCPP_INFO(this->get_logger(), "[L]aying Down");
+            //RCLCPP_INFO(this->get_logger(), "[L]aying Down");
 
             if (time_offset < 0.0) {
                 time_offset = runing_time_fast;
@@ -306,10 +307,10 @@ private:
             }
             
             else if (control_type=="VIC_1" || control_type=="VIC_2" || control_type=="VIC_3"){
-                std::cout << "Target Dof pos: | Target Stiff | Target Damp" << std::endl;
+                //std::cout << "Target Dof pos: | Target Stiff | Target Damp" << std::endl;
                 for (int i = 0; i < 12; i++)
                 {
-                    std::cout << target_dof_pos[i]<< "|" << target_kp[i] << "|" << target_kd[i] << std::endl;
+                    //std::cout << target_dof_pos[i]<< "|" << target_kp[i] << "|" << target_kd[i] << std::endl;
                     low_cmd_.motor_cmd[i].q = target_dof_pos[i];
                     low_cmd_.motor_cmd[i].dq = 0;
                     low_cmd_.motor_cmd[i].kp = target_kp[i];
@@ -322,7 +323,7 @@ private:
 
         if(policy_id == -1)
         {
-            RCLCPP_INFO(this->get_logger(), "StandBy");
+            //RCLCPP_INFO(this->get_logger(), "StandBy");
             for (int i = 0; i < 12; i++)
             {
                 low_cmd_.motor_cmd[i].q = 0.0;
@@ -355,9 +356,9 @@ private:
     void preprocess_input()
     {
         // Convert observations to tensor
-        std::cout << "Offset: " << offset << std::endl;
+        //std::cout << "Offset: " << offset << std::endl;
         model_input = torch::from_blob(observations, {1, 48+offset}, torch::kFloat32);
-        std::cout << "Model input: " << model_input << std::endl;
+        //std::cout << "Model input: " << model_input << std::endl;
         model_input = model_input.clone(); // Ensure tensor is not shared
     }
 
@@ -395,7 +396,7 @@ private:
         }
 
         // Print the concatenated string using RCLCPP_INFO
-        RCLCPP_INFO(this->get_logger(), "%s", observations_str.c_str());
+        //RCLCPP_INFO(this->get_logger(), "%s", observations_str.c_str());
     }
 
     private:
@@ -623,7 +624,7 @@ void listenForKeyPress() {
                     // Add more cases for other special keys if needed
                 }
             } else {
-                std::cout << "Key pressed: " << static_cast<char>(ch) << "\n";
+                //std::cout << "Key pressed: " << static_cast<char>(ch) << "\n";
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5)); // Small sleep to prevent busy waiting
