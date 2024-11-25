@@ -57,28 +57,19 @@ class PolicyVicClass:
         print(f"Ckpt path: {self.ckpt_path}")
         self.load_model()
 
-        self.stand_up_joint_pos = np.array([
-            -0.1, 0.9, -1.8, -0.1, 0.9, -1.8,
-            -0.1, 0.9, -1.8, -0.1, 0.9, -1.8
-        ], dtype=float)
+        
 
         self.stand_down_joint_pos = np.array([
-            0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375, 0.0473455,
-            1.22187, -2.44375, -0.0473455, 1.22187, -2.44375
+            0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375, -0.15,
+            1.22187, -2.44375, 0.15, 1.22187, -2.44375
         ], dtype=float)
 
         self.default_pos = torch.tensor(self.cfg.env.default_pos).to(self.device)
-            # torch.tensor(
-            # [0, 0, 0.35, 1, 0, 0, 0,  # base coord + quat, former height 0.27
-            #  -0.1, 0.9, -1.8,  # FR
-            #  0.1, 0.9, -1.8,  # FL
-            #  -0.1, 0.9, -1.8,  # RR
-            #  0.1, 0.9, -1.8]  # RL
-        #).to(self.device)
+        self.stand_up_joint_pos = np.array(self.cfg.env.default_pos, dtype=float)[7:]
         self.action_scale = self.cfg.env.action_scale
 
         self.dt_fast = 0.002
-        self.dt_slow = 0.02
+        self.dt_slow = 0.01
         self.runing_time = 0.0
         self.runing_time_slow = 0.0
         self.runing_time_fast = 0.0
@@ -180,27 +171,27 @@ class PolicyVicClass:
         try:
             if key == keyboard.Key.up:
                 self.command[0] = torch.clamp(self.command[0] + 0.1, -1.2, 1.2)
-                print(f"Command: {self.command}")
+                #print(f"Command: {self.command}")
             elif key == keyboard.Key.down:
                 self.command[0] = torch.clamp(self.command[0] - 0.1, -1.2, 1.2)
-                print(f"Command: {self.command}")
+                #print(f"Command: {self.command}")
             elif key == keyboard.Key.left:
-                self.command[2] = torch.clamp(self.command[2] + 0.1, -1.2, 1.2)
-                print(f"Command: {self.command}")
+                self.command[1] = torch.clamp(self.command[1] + 0.1, -1.2, 1.2)
+                #print(f"Command: {self.command}")
             elif key == keyboard.Key.right:
-                self.command[2] = torch.clamp(self.command[2] - 0.1, -1.2, 1.2)
-                print(f"Command: {self.command}")
+                self.command[1] = torch.clamp(self.command[1] - 0.1, -1.2, 1.2)
+                #print(f"Command: {self.command}")
             elif key.char == 'e':
                 self.command[:] = 0.0
                 self.policy_id[0] = 1
-                print(f"Policy changed to: {self.policy_id}")
-            elif key.char == 'd':
-                print(f"Laying down")
+                #print(f"Policy changed to: {self.policy_id}")
+            elif key.char == 'l':
+                print(f"[L]aying down")
                 self.command[:] = 0.0
                 self.policy_id[0] = 2
             elif key.char == 's':
                 self.policy_id[0] = 0
-            elif key.char == '0':
+            elif key.char == 'n':
                 self.command[:] = 0.0
             elif key.char == 'q':
                 stop_loop = True
@@ -274,10 +265,15 @@ class PolicyVicClass:
             if self.policy_id[0] == 0:
                 m = (self.stiff_range[0] + self.stiff_range[1]) / 2
                 r = (self.stiff_range[1] - self.stiff_range[0]) / 2
-                print(f"Observations : {self.obs}")
+                #print(f"Observations : {self.obs}")
                 actions = self.actor_critic.forward(self.obs)
                 last_action = actions
-                target_dof_pos = actions[:12] * self.action_scale + self.default_pos[7:]
+                scaled_action = actions[:12] * self.action_scale
+                scaled_action[0] = scaled_action[0] * self.cfg.env.hip_scale
+                scaled_action[3] = scaled_action[3] * self.cfg.env.hip_scale
+                scaled_action[6] = scaled_action[6] * self.cfg.env.hip_scale
+                scaled_action[9] = scaled_action[9] * self.cfg.env.hip_scale
+                target_dof_pos = scaled_action + self.default_pos[7:]
                 Kp= torch.ones(12)
                 if self.control_mode == "VIC_1":
                     action_stiffness = torch.tile(actions[12:], (4,))
@@ -300,7 +296,7 @@ class PolicyVicClass:
                         cmd.motor_cmd[i].q = phase * self.stand_up_joint_pos[i] + (
                                 1 - phase) * self.stand_down_joint_pos[i]
 
-                        cmd.motor_cmd[i].kp = phase * 55.0 + (1 - phase) * 20.0
+                        cmd.motor_cmd[i].kp = phase * 50.0 + (1 - phase) * 20.0
                         cmd.motor_cmd[i].dq = 0.0
                         cmd.motor_cmd[i].kd = 1.0
                         cmd.motor_cmd[i].tau = 0.0

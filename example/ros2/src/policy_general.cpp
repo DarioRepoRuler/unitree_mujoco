@@ -208,7 +208,12 @@ private:
             postprocess_output();
 
             for (int i = 0;i<12;i++){
-                target_dof_pos[i] = actions[i]*0.3 + default_motor_pos[i];
+                if ( (i == 0) || (i == 3) || (i == 6) || (i == 9) ){
+                    target_dof_pos[i] = actions[i]*action_scale*hip_scale+ default_motor_pos[i];
+                }
+                else{
+                    target_dof_pos[i] = actions[i]*action_scale + default_motor_pos[i];
+                }
             }
             if (control_type == "VIC_1"){
                 for (int i = 0;i<3;i++){ //  every additional stiffness
@@ -267,7 +272,7 @@ private:
 
         else if (policy_id == 1)
         {   
-            RCLCPP_INFO(this->get_logger(), "[D]own");
+            RCLCPP_INFO(this->get_logger(), "[L]aying Down");
 
             if (time_offset < 0.0) {
                 time_offset = runing_time_fast;
@@ -494,17 +499,20 @@ private:
     //float rotation_matrix[3][3]; // just for rotation 
     float gravity_world[3] = {0.0, 0.0, -1.0};
     float actions[24];
-    float std_stiffness = 50.0;
-    float m = (2.0 + 0.5)/2;
-    float r = (2.0 - 0.5)/2;
+    float std_stiffness = 40.0;
+    float m = (1.5 + 0.5)/2;
+    float r = (1.5 - 0.5)/2;
+    
+    float action_scale = 0.5;
+    float hip_scale = 0.6;
 
     // Data members for publisher
     unitree_go::msg::LowCmd low_cmd_;
-    double stand_up_joint_pos_[12] = {0.00571868, 0.608813, -1.21763, -0.00571868, 0.608813, -1.21763,
-                                      0.00571868, 0.608813, -1.21763, -0.00571868, 0.608813, -1.21763};
+    double stand_up_joint_pos_[12] = {-0.1, 0.9, -1.8, 0.1, 0.9, -1.8, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8};
     double stand_down_joint_pos_[12] = {0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375,
-                                        0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375};
-    float default_motor_pos[12] = {-0.1, 0.9, -1.8, 0.1, 0.9, -1.8, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8  };
+                                        0.15, 1.22187, -2.44375, -0.15, 1.22187, -2.44375};
+    // float default_motor_pos[12] = {-0.1, 0.9, -1.8, 0.1, 0.9, -1.8, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8  };
+    float default_motor_pos[12] = {-0.1, 0.8, -1.5, 0.1, 0.8, -1.5, -0.1, 1.0, -1.5, 0.1, 1.0, -1.5};
     double dt_fast;
     double dt_slow;
     double runing_time_slow; 
@@ -594,13 +602,13 @@ void listenForKeyPress() {
                 policy_commands[1] = 0.0;
                 policy_commands[2] = 0.0;
             }
-            else if (ch == 'd' || ch == 'D') {
+            else if (ch == 'l' || ch == 'L') {
                 policy_id = 1;
                 policy_commands[0] = 0.0;
                 policy_commands[1] = 0.0;
                 policy_commands[2] = 0.0;
             }
-            else if (ch=='0') {
+            else if (ch=='n' || ch == 'N') {
                 policy_commands[0] = 0.0;
                 policy_commands[1] = 0.0;
                 policy_commands[2] = 0.0;

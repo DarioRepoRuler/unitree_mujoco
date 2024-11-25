@@ -1,70 +1,211 @@
-defaults:
-  - _self_
-  - policy: ppo
-
+ckpt_path: outputs/2024-11-24/09-35-09/checkpoints/last.pt
+curriculum: false
+device: cuda:0
 env:
-  action_scale: 0.3
-  hip_scale: 1.0
-  control_mode: "VIC_2"
-  physics_steps_per_control_step: 4
-
-  num_history_actor: 1 # number of previous observations to stack
-  num_history_critic: 1 # number of previous observations to stack
-  kick_vel: 0.5
-  push_interval: 100
-  is_training: False
-  episode_length: 500
-
-  default_pos: [0, 0, 0.35, 1, 0, 0, 0, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8] #[0, 0, 0.32, 1, 0, 0, 0, -0.1, 0.8, -1.5, 0.1, 0.8, -1.5, -0.1, 1.0, -1.5, 0.1, 1.0, -1.5]
-
-
-  single_obs_size: 48
-  single_obs_size_priv: 59
-
+  action_scale: 0.5
+  action_stiff_scale: 1.0
+  body_penalty_geom:
+  - base_0
+  - base_1
+  - base_2
+  - FR_hip
+  - FR_thigh
+  - FL_hip
+  - FL_thigh
+  - RR_hip
+  - RR_thigh
+  - RL_hip
+  - RL_thigh
+  contacts:
+    total: 23
+  control:
+    d_gain: 1.0
+    p_gain: 40.0
+    stiff_range:
+    - 0.5
+    - 1.5
+  control_mode: VIC_2
+  control_range:
+    cmd_ang:
+    - -0.0
+    - 0.0
+    cmd_x:
+    - -1.5
+    - 1.5
+    cmd_y:
+    - -1.5
+    - 1.5
+  default_pos:
+  - 0
+  - 0
+  - 0.32
+  - 1
+  - 0
+  - 0
+  - 0
+  - -0.1
+  - 0.8
+  - -1.5
+  - 0.1
+  - 0.8
+  - -1.5
+  - -0.1
+  - 1.0
+  - -1.5
+  - 0.1
+  - 1.0
+  - -1.5
   domain_rand:
-    randomisation: True
-    gravity_offset: [-1., 1.]
-    friction_range: [0.3, 1.25]
-    payload_range: [-1., 3.]
-    hip_mass_range: [-0.3, 0.3]
-    kp_range: [0.8, 1.3]
-    kd_range: [0.5, 1.5]
-    motor_strength_range: [0.9, 1.1]
-
-    local_v_noise: 0.1
-    local_w_noise: 0.2
+    enable: false
+    friction_range:
+    - 0.3
+    - 1.25
+    gravity_noise: 0.05
+    gravity_offset:
+    - -1.0
+    - 1.0
+    hip_mass_range:
+    - -0.5
+    - 0.5
     joint_noise: 0.01
     joint_vel_noise: 1.5
-    gravity_noise: 0.05
-
+    kd_range:
+    - 0.5
+    - 1.5
+    kp_range:
+    - 0.8
+    - 1.3
+    local_v_noise: 0.1
+    local_w_noise: 0.2
+    motor_strength_range:
+    - 0.9
+    - 1.1
+    payload_range:
+    - -1.0
+    - 3.0
+    randomisation: true
+  enable_force_kick: false
+  episode_length: 1000
+  force_kick_duration: 0.1
+  force_kick_impulse:
+  - 20.0
+  - 20.0
+  force_kick_interval: 150
+  hip_scale: 0.6
+  impulse_force_kick: false
+  is_training: false
+  kick_force:
+  - 50.0
+  - 600.0
+  kick_vel: 0.0
+  manual_control:
+    cmd_ang: 0.0
+    cmd_x: 0.3
+    cmd_y: 0.0
+    enable: true
+    task: auto
   normalization:
+    command_scale: 2.0
+    joint_vel_scale: 0.1
     local_v_scale: 2.0
     local_w_scale: 0.25
-    joint_vel_scale: 0.1
-    command_scale: 2.0
-
-  manual_control:
-    enable: True
-    cmd_x: 0.8
-    cmd_y: 0.0
-    cmd_ang: 0.0
-
-  reset_pos_x: [-5.0, 5.0]
-  reset_pos_y: [-5.0, 5.0]
-
-  control:
-    stiff_range: [0.5, 2.0]
-    p_gain: 50.0
-    d_gain: 1.0
-
-
-ckpt_path: 'outputs/2024-10-15/08-10-06/checkpoints/last.pt' # 'outputs/2024-11-08/15-11-03/checkpoints/last.pt' #'best_models/test_vic1.pt' #'best_models/test_vic_2_oldpose.pt' #'best_models/test_pos_priv.pt' # # #'best_models/test_p_oldpose.pt' # #  # #'outputs/2024-09-16/18-45-14/checkpoints/model_2000.pt' # ## #'best_models/test_vic1.pt' #
-timesteps_per_rollout: 100
-num_iterations: 10
-num_envs: 200
-
-
-viz: True
-device: 'cuda:0'
-curriculum: False
-scene_xml: 'unitree_go2/flat.xml'
+  num_history_actor: 1
+  num_history_critic: 1
+  physics_steps_per_control_step: 4
+  push_interval: 25
+  reset_a_x:
+  - -0.0
+  - 0.0
+  reset_a_y:
+  - -0.0
+  - 0.0
+  reset_pos_x:
+  - -0.0
+  - 0.0
+  reset_pos_y:
+  - -0.0
+  - 0.0
+  reset_theta:
+  - 0
+  - 0.392699
+  reward_scales:
+    action_rate: -0.002
+    ang_vel_xy: -0.05
+    feet_air_time: 0.5
+    foot_slip: -0.1
+    hip: 0.05
+    lin_vel_z: -2.0
+    orientation: -5.0
+    rew_acceleration: -2.5e-07
+    rew_base_height: -0.6
+    rew_collision: -10.0
+    rew_com: -1.0
+    rew_joint_track: -0.1
+    rew_limits: -0.02
+    rew_power: -2.0e-05
+    rew_power_distro: -5.0e-06
+    stand_still: -0.5
+    termination: -10.0
+    tracking_ang_vel: 0.8
+    tracking_lin_vel: 1.5
+  sample_command_interval: 500
+  single_obs_size: 48
+  single_obs_size_priv: 59
+  terminate_geoms:
+  - base_0
+  - base_1
+  - base_2
+  - FR_hip
+  - FL_hip
+  - RR_hip
+  - RL_hip
+group: ${env.control_mode}
+log: true
+log_dir: projects/TALocomotion/outputs/
+num_envs: 1000
+num_iterations: 65
+num_learning_iterations: 2001
+plot_details: false
+policy:
+  actor:
+    hidden_dim: 256
+    init_std: 1.0
+    n_layers: 6
+    use_lstm: false
+  clip_param: 0.2
+  critic:
+    hidden_dim: 256
+    n_layers: 6
+  denoise_loss_coef: 1.0
+  desired_kl: 0.01
+  encoding_arch:
+    decoder:
+      hidden_dim: 124
+      n_layers: 2
+    encoder:
+      hidden_dim: 256
+      n_layers: 1
+    latent_dim: 40
+  entropy_coef: 0.01
+  gamma: 0.99
+  lamb: 0.95
+  latent_loss_coef: 0.02
+  lr: 0.0001
+  lr_encoder: 0.001
+  max_grad_norm: 1.0
+  num_batches: 4
+  num_epochs: 5
+  num_epochs_encoder: 4
+  schedule: adaptive
+  stiff_network:
+    hidden_dim: 256
+    n_layers: 2
+  use_clipped_value_loss: true
+  use_encoder_decoder: false
+  value_loss_coef: 1.0
+project: TALocoMotion
+rollouts_per_experiment: 8
+scene_xml: unitree_go2/flat.xml
+success_threshold: 0.78125
+timesteps_per_rollout: 50
+viz: true
