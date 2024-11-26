@@ -17,10 +17,10 @@ class low_level_cmd_sender : public rclcpp::Node
         low_level_cmd_sender() : Node("low_level_cmd_sender")
         {
             // the cmd_puber is set to subscribe "/lowcmd" topic
-            cmd_puber = this->create_publisher<unitree_go::msg::LowCmd>("/lowcmd", 10);
+            //cmd_puber = this->create_publisher<unitree_go::msg::LowCmd>("/lowcmd", 10);
 
             // The timer is set to 200Hz, and bind to low_level_cmd_sender::timer_callback function
-            timer_ = this->create_wall_timer(std::chrono::milliseconds(int(dt * 1000)), std::bind(&low_level_cmd_sender::timer_callback, this));
+            //timer_ = this->create_wall_timer(std::chrono::milliseconds(int(dt * 1000)), std::bind(&low_level_cmd_sender::timer_callback, this));
 
             auto topic_low_name = "lowstate";
             auto topic_high_name = "sportmodestate";
@@ -28,8 +28,8 @@ class low_level_cmd_sender : public rclcpp::Node
             suber_low_state = this->create_subscription<unitree_go::msg::LowState>(
                 topic_low_name, 10, std::bind(&low_level_cmd_sender::topic_low_callback, this, _1));
 
-            suber_high_state = this->create_subscription<unitree_go::msg::SportModeState>(
-                topic_high_name, 10, std::bind(&low_level_cmd_sender::topic_high_callback, this, _1));
+            //suber_high_state = this->create_subscription<unitree_go::msg::SportModeState>(
+            //    topic_high_name, 10, std::bind(&low_level_cmd_sender::topic_high_callback, this, _1));
 
             // Initialize lowcmd
             init_cmd();
