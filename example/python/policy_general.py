@@ -51,6 +51,7 @@ class PolicyVicClass:
         else:
             assert False, f"Control mode {self.control_mode} not supported"
         self.obs = torch.zeros(self.num_single_obs).to(self.device)
+        self.last_vel = torch.tensor([0.0,0.0,0.0]).to(self.device)
         self.policy_cfg = cfg.policy
         print(f"Policy config: {self.policy_cfg}")
         self.ckpt_path = os.path.join(os.getcwd(), cfg.ckpt_path)
@@ -68,7 +69,7 @@ class PolicyVicClass:
         self.stand_up_joint_pos = np.array(self.cfg.env.default_pos, dtype=float)[7:]
         self.action_scale = self.cfg.env.action_scale
 
-        self.dt_fast = 0.002
+        self.dt_fast = 0.001
         self.dt_slow = 0.01
         self.runing_time = 0.0
         self.runing_time_slow = 0.0
@@ -146,6 +147,13 @@ class PolicyVicClass:
     def LowStateHandler(self, msg: LowState_):
         self.quaternion[:] = torch.tensor(msg.imu_state.quaternion)
         ang_vel = np.array(msg.imu_state.gyroscope)
+        # accel = np.array(msg.imu_state.accelerometer)
+        # accel = torch.tensor(accel).to(self.device)
+        # local_vel = self.last_vel + accel*0.002
+        # print(f"Local vel: {local_vel}")
+        # #self.obs[:3] = torch.tensor(local_vel*2.0).to(self.device)
+        # #print(f"Local vel: {local_vel}")
+        # self.last_vel = torch.tensor(local_vel).to(self.device)
         local_w = self.rotate_vector(self.quat_invert(np.array(self.quaternion)), ang_vel)
         self.obs[3:6] = torch.tensor(ang_vel).to(self.device) * 0.25
         proj_gravity = self.get_gravity_vector(np.array(self.quaternion))
@@ -164,8 +172,8 @@ class PolicyVicClass:
     def HighStateHandler(self, msg: SportModeState_):
         glob__lin_vel = np.array(msg.velocity)
         local_vel = self.rotate_vector(self.quat_invert(self.quaternion), glob__lin_vel) * 2.0
-        self.obs[:3] = torch.tensor(local_vel).to(self.device)
-
+        #self.obs[:3] = torch.tensor(local_vel).to(self.device)
+        self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
     def on_press(self, key):
         global stop_loop
         try:
