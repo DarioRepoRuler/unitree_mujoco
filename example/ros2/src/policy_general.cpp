@@ -176,7 +176,7 @@ private:
 
         for (int i = 0; i < 3; i++)
         {
-            observations[i] = local_v[i]*2.0;
+            observations[i] = 0.0;//local_v[i]*2.0;
         }
 
         RCLCPP_INFO(this->get_logger(), "Base velocity -- vx: %f; vy: %f; vz: %f", local_v[0], local_v[1], local_v[2]);
