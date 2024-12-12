@@ -98,7 +98,7 @@ class PolicyVicClass:
 
         self.actor_critic = actor_critic
         print("Model loaded successfully")
-        output_model_path = os.path.join(os.getcwd(), "vic2_model.pt")
+        output_model_path = os.path.join(os.getcwd(), "p20_model.pt")
         self.convert_and_save_model(self.actor_critic, output_model_path)
 
 
@@ -151,7 +151,7 @@ class PolicyVicClass:
         # accel = torch.tensor(accel).to(self.device)
         # local_vel = self.last_vel + accel*0.002
         # print(f"Local vel: {local_vel}")
-        # #self.obs[:3] = torch.tensor(local_vel*2.0).to(self.device)
+        # self.obs[:3] = torch.tensor(local_vel*2.0).to(self.device)
         # #print(f"Local vel: {local_vel}")
         # self.last_vel = torch.tensor(local_vel).to(self.device)
         local_w = self.rotate_vector(self.quat_invert(np.array(self.quaternion)), ang_vel)
@@ -321,9 +321,9 @@ class PolicyVicClass:
                     if self.control_mode == "P":
                         for i in range(12):
                             cmd.motor_cmd[i].q = target_dof_pos[i]
-                            cmd.motor_cmd[i].kp = 50.0
+                            cmd.motor_cmd[i].kp = self.cfg.env.control.p_gain
                             cmd.motor_cmd[i].dq = 0.0
-                            cmd.motor_cmd[i].kd = 1.0
+                            cmd.motor_cmd[i].kd = self.cfg.env.control.d_gain
                             cmd.motor_cmd[i].tau = 0.0
 
                 elif self.policy_id[0] == 1:
@@ -381,7 +381,7 @@ class PolicyVicClass:
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
 
-@hydra.main(config_path='config', config_name='test', version_base="1.2")
+@hydra.main(config_path='config', config_name='test_pos', version_base="1.2")
 def test(cfg: DictConfig):
     print(f"Configuration: {cfg}")
     policy_vic = PolicyVicClass(cfg)
