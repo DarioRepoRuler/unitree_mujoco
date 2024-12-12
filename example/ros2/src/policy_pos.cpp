@@ -46,7 +46,7 @@ public:
             runing_time_slow(0.0),
             runing_time_fast(0.0),
             phase(0.0),
-            control_type("VIC_2"), 
+            control_type("P"), 
             model(model)    
         {
         // Set up subscriber
@@ -301,7 +301,7 @@ private:
                     low_cmd_.motor_cmd[i].q = target_dof_pos[i];
                     low_cmd_.motor_cmd[i].dq = 0;
                     low_cmd_.motor_cmd[i].kp = std_stiffness;
-                    low_cmd_.motor_cmd[i].kd = 1.0;
+                    low_cmd_.motor_cmd[i].kd = std_damp;
                     low_cmd_.motor_cmd[i].tau = 0;
                 }
             }
@@ -500,7 +500,8 @@ private:
     //float rotation_matrix[3][3]; // just for rotation 
     float gravity_world[3] = {0.0, 0.0, -1.0};
     float actions[24];
-    float std_stiffness = 40.0;
+    float std_stiffness = 20.0;
+    float std_damp = 0.6;
     float m = (1.5 + 0.5)/2;
     float r = (1.5 - 0.5)/2;
     
@@ -639,7 +640,7 @@ int main(int argc, char **argv)
     try {
         // Get the path to the executable
         std::filesystem::path exePath = std::filesystem::canonical(argv[0]);
-        std::filesystem::path modelPath = exePath.parent_path() / "vic2_model.pt";
+        std::filesystem::path modelPath = exePath.parent_path() / "p20_model.pt";
         std::cout << "Model path: " << modelPath.string() << std::endl;
         // Load the model
         model = torch::jit::load(modelPath.string());
