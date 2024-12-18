@@ -158,6 +158,19 @@ class UnitreeSdk2Bridge:
                 self.low_state.imu_state.accelerometer[2] = self.mj_data.sensordata[
                     self.dim_motor_sensor + 9
                 ]
+                # Calculate the magnitudes of 4 foot forces
+                force_magnitudes = np.array([0. ,0. ,0. ,0.])
+                for i in range(4):
+                    force_magnitudes[i] = np.linalg.norm(self.mj_data.sensordata[-12+i*3:-12+(i+1)*3])
+                    if i == 3:
+                        force_magnitudes[i] = np.linalg.norm(self.mj_data.sensordata[-3:])
+                forces_converted = np.array(force_magnitudes, dtype=np.uint16) 
+                
+                self.low_state.foot_force[0] = forces_converted[0]
+                self.low_state.foot_force[1] = forces_converted[1]
+                self.low_state.foot_force[2] = forces_converted[2]
+                self.low_state.foot_force[3] = forces_converted[3]
+
 
             if self.joystick != None:
                 pygame.event.get()
