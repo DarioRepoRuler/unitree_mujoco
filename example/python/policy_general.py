@@ -48,6 +48,10 @@ class PolicyVicClass:
             self.num_actions += 12
             self.num_single_obs += 12
             self.num_single_priv_obs += 12
+        elif self.control_mode == "VIC_4":
+            self.num_actions += 7
+            self.num_single_obs += 7
+            self.num_single_priv_obs += 7
         else:
             assert False, f"Control mode {self.control_mode} not supported"
         self.obs = torch.zeros(self.num_single_obs).to(self.device)
@@ -172,8 +176,8 @@ class PolicyVicClass:
     def HighStateHandler(self, msg: SportModeState_):
         glob__lin_vel = np.array(msg.velocity)
         local_vel = self.rotate_vector(self.quat_invert(self.quaternion), glob__lin_vel) * 2.0
-        #self.obs[:3] = torch.tensor(local_vel).to(self.device)
-        self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
+        self.obs[:3] = torch.tensor(local_vel).to(self.device)
+        #self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
     def on_press(self, key):
         global stop_loop
         try:
@@ -210,7 +214,11 @@ class PolicyVicClass:
     def start_listener(self):
         with keyboard.Listener(on_press=self.on_press) as listener:
             listener.join()
-
+        
+    def unscale(self, x, min, max):
+        m = (min + max) / 2
+        r = (max - min) / 2
+        return m + x * r
     
     def test(self, config: DictConfig):
         print(f"Configuration: {config}")
@@ -291,6 +299,14 @@ class PolicyVicClass:
                     Kp = self.p_gains * (m + r * action_stiffness)
                 if self.control_mode== "VIC_3":
                     Kp = self.p_gains * (m + r * actions[12:])
+                if self.control_mode == "VIC_4":
+                    stiff_leg = torch.tile(self.unscale(actions[12:12+4], 0., 1.), (3,)).reshape(3,4)
+                    stiff_joint = self.unscale(actions[12+4:12+7], 0., 1.)
+                    # Step 3: Compute action_stiff
+                    action_stiff = torch.flatten((stiff_leg * stiff_joint.unsqueeze(1)).T)
+                    # Step 4: Rescale action_stiff
+                    action_stiff = self.unscale(2.0 * (action_stiff - 0.5), self.stiff_range[0], self.stiff_range[1])
+                    Kp = self.p_gains * action_stiff
                 Kd= 0.2*torch.sqrt(Kp)
 
             while total_fast_time < self.dt_slow:
@@ -381,7 +397,7 @@ class PolicyVicClass:
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
 
-@hydra.main(config_path='config', config_name='test_pos', version_base="1.2")
+@hydra.main(config_path='config', config_name='test', version_base="1.2")
 def test(cfg: DictConfig):
     print(f"Configuration: {cfg}")
     policy_vic = PolicyVicClass(cfg)

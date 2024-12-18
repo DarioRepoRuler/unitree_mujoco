@@ -106,6 +106,7 @@
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" />
             <geom name="FL" class="foot" />
             <body name="FL_foot" pos="0 0 -0.213" />
+            <site name="FL_foot_force_site" pos="0 0 -0.213" size="0.01" />
           </body>
         </body>
       </body>
@@ -141,6 +142,7 @@
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" />
             <geom name="FR" class="foot" />
             <body name="FR_foot" pos="0 0 -0.213" />
+              <site name="FR_foot_force_site" pos="0 0 -0.213" size="0.01" />
           </body>
         </body>
       </body>
@@ -176,6 +178,7 @@
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" />
             <geom name="RL" class="foot" />
             <body name="RL_foot" pos="0 0 -0.213" />
+            <site name="RL_foot_force_site" pos="0 0 -0.213" size="0.01" />
           </body>
         </body>
       </body>
@@ -213,6 +216,7 @@
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" />
             <geom name="RR" class="foot" />
             <body name="RR_foot" pos="0 0 -0.213" />
+            <site name="RR_foot_force_site" pos="0 0 -0.213" size="0.01" />
           </body>
         </body>
       </body>
@@ -280,6 +284,10 @@
     
     <framepos name="frame_pos" objtype="site" objname="imu" />
     <framelinvel name="frame_vel" objtype="site" objname="imu" />
+    <force name="FL_foot_force_sensor" site="FL_foot_force_site" />
+    <force name="FR_foot_force_sensor" site="FR_foot_force_site" />
+    <force name="RL_foot_force_sensor" site="RL_foot_force_site" />
+    <force name="RR_foot_force_sensor" site="RR_foot_force_site" />
   </sensor>
 
   <keyframe>
