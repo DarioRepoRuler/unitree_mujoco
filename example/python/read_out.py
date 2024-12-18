@@ -29,8 +29,8 @@ crc = CRC()
 def LowStateHandler(msg: LowState_):
     foot_force = msg.foot_force
     print("foot_force: ", foot_force)
-    foot_force_est = msg.foot_force_est
-    print("foot_force_est: ", foot_force_est)
+    #foot_force_est = msg.foot_force_est
+    #print("foot_force_est: ", foot_force_est)
 
 input("Press enter to start")
 
@@ -65,7 +65,7 @@ if __name__ == '__main__':
         step_start = time.perf_counter()
 
         runing_time += dt
-        print("runing_time: ", runing_time)
+        #print("runing_time: ", runing_time)
 
         if (runing_time < 3.0):
             # Stand up in first 3 second
@@ -91,7 +91,7 @@ if __name__ == '__main__':
                 cmd.motor_cmd[i].tau = 0.0
 
         cmd.crc = crc.Crc(cmd)
-        #pub.Write(cmd)
+        pub.Write(cmd)
 
         time_until_next_step = dt - (time.perf_counter() - step_start)
         if time_until_next_step > 0:
