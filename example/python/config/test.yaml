@@ -2,13 +2,13 @@ defaults:
   - _self_
   - policy: ppo
 
-ckpt_path:  'outputs/2024-12-02/11-50-31/checkpoints/last.pt' #'outputs/2024-11-26/10-30-57/checkpoints/model_1500.pt'  #'outputs/2024-11-24/09-54-02/checkpoints/last.pt' # #'outputs/2024-11-24/09-58-49/checkpoints/last.pt'
+ckpt_path:  'outputs/2024-12-18/09-23-48/checkpoints/last.pt' #'outputs/2024-11-26/10-30-57/checkpoints/model_1500.pt'  #'outputs/2024-11-24/09-54-02/checkpoints/last.pt' # #'outputs/2024-11-24/09-58-49/checkpoints/last.pt'
 
 env:
   action_scale: 0.5
   action_stiff_scale: 1.0
   hip_scale: 0.6
-  control_mode: "VIC_4"
+  control_mode: "VIC_2"
   physics_steps_per_control_step: 4
   sample_command_interval: 500
 
