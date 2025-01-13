@@ -102,7 +102,8 @@ class PolicyVicClass:
 
         self.actor_critic = actor_critic
         print("Model loaded successfully")
-        output_model_path = os.path.join(os.getcwd(), "p20_model.pt")
+        print(f"Output name: {self.cfg.env.control_mode}")
+        output_model_path = os.path.join(os.getcwd(), f"{self.cfg.env.control_mode}_model.pt")
         self.convert_and_save_model(self.actor_critic, output_model_path)
 
 
@@ -176,8 +177,8 @@ class PolicyVicClass:
     def HighStateHandler(self, msg: SportModeState_):
         glob__lin_vel = np.array(msg.velocity)
         local_vel = self.rotate_vector(self.quat_invert(self.quaternion), glob__lin_vel) * 2.0
-        self.obs[:3] = torch.tensor(local_vel).to(self.device)
-        #self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
+        #self.obs[:3] =torch.tensor(local_vel).to(self.device)
+        self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
     def on_press(self, key):
         global stop_loop
         try:
@@ -397,7 +398,7 @@ class PolicyVicClass:
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
 
-@hydra.main(config_path='config', config_name='test', version_base="1.2")
+@hydra.main(config_path='config', config_name='test_pos', version_base="1.2")
 def test(cfg: DictConfig):
     print(f"Configuration: {cfg}")
     policy_vic = PolicyVicClass(cfg)
