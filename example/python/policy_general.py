@@ -177,8 +177,8 @@ class PolicyVicClass:
     def HighStateHandler(self, msg: SportModeState_):
         glob__lin_vel = np.array(msg.velocity)
         local_vel = self.rotate_vector(self.quat_invert(self.quaternion), glob__lin_vel) * 2.0
-        #self.obs[:3] =torch.tensor(local_vel).to(self.device)
-        self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
+        self.obs[:3] =torch.tensor(local_vel).to(self.device)
+        #self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
     def on_press(self, key):
         global stop_loop
         try:

@@ -1,6 +1,9 @@
 import time
 import sys
 import numpy as np
+import matplotlib.pyplot as plt
+from threading import Thread, Lock
+from collections import deque
 
 from unitree_sdk2py.core.channel import ChannelPublisher, ChannelSubscriber
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize
@@ -9,42 +12,83 @@ from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowCmd_
 from unitree_sdk2py.utils.crc import CRC
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_
 
-stand_up_joint_pos = np.array([
-    0.00571868, 0.608813, -1.21763, -0.00571868, 0.608813, -1.21763,
-    0.00571868, 0.608813, -1.21763, -0.00571868, 0.608813, -1.21763
-],
-                              dtype=float)
-
-stand_down_joint_pos = np.array([
-    0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375, 0.0473455,
-    1.22187, -2.44375, -0.0473455, 1.22187, -2.44375
-],
-                                dtype=float)
-
+# Constants
 dt = 0.002
 runing_time = 0.0
 crc = CRC()
+MAX_DATA_POINTS = 500  # Limit the size of data for plotting
 
+# Data structures for live plotting with thread-safe operations
+kp_values = {f'kp_{i}': deque(maxlen=MAX_DATA_POINTS) for i in range(12)}
+torque_values = {f'torque_{i}': deque(maxlen=MAX_DATA_POINTS) for i in range(12)}
+data_lock = Lock()  # To protect shared data between threads
+
+# Define a function to update the live plot for kp
+def live_plot_kp():
+    plt.ion()
+    fig, ax = plt.subplots()
+    ax.set_title("Live kp Values")
+    ax.set_xlabel("Time Steps")
+    ax.set_ylabel("Stiffness (Kp)")
+    lines = [ax.plot([], [], label=f'kp_{i}')[0] for i in range(12)]
+    ax.legend()
+    update_interval = 0.1  # Time in seconds between plot updates
+
+    while True:
+        time.sleep(update_interval)
+        with data_lock:
+            for i, line in enumerate(lines):
+                line.set_data(range(len(kp_values[f'kp_{i}'])), list(kp_values[f'kp_{i}']))
+        ax.relim()
+        ax.autoscale_view()
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+
+# Define a function to update the live plot for torque
+def live_plot_torque():
+    plt.ion()
+    fig, ax = plt.subplots()
+    ax.set_title("Live torque Values")
+    ax.set_xlabel("Time Steps")
+    ax.set_ylabel("Torque [Nm]")
+    lines = [ax.plot([], [], label=f'torque_{i}')[0] for i in range(12)]
+    ax.legend()
+    update_interval = 0.1  # Time in seconds between plot updates
+
+    while True:
+        time.sleep(update_interval)
+        with data_lock:
+            for i, line in enumerate(lines):
+                line.set_data(range(len(torque_values[f'torque_{i}'])), list(torque_values[f'torque_{i}']))
+        ax.relim()
+        ax.autoscale_view()
+        fig.canvas.draw()
+        fig.canvas.flush_events()
 
 def LowStateHandler(msg: LowState_):
-    foot_force = msg.foot_force
-    print("foot_force: ", foot_force)
-    #foot_force_est = msg.foot_force_est
-    #print("foot_force_est: ", foot_force_est)
+    with data_lock:
+        for i in range(12):
+            torque_values[f'torque_{i}'].append(msg.motor_state[i].tau_est)
+
+def LowCmdHandler(msg: LowCmd_):
+    with data_lock:
+        for i in range(12):
+            kp_values[f'kp_{i}'].append(msg.motor_cmd[i].kp)
 
 input("Press enter to start")
 
 if __name__ == '__main__':
+    # Start the live plotting threads
+    Thread(target=live_plot_kp, daemon=True).start()
+    Thread(target=live_plot_torque, daemon=True).start()
 
-    if len(sys.argv) <2:
+    if len(sys.argv) < 2:
         ChannelFactoryInitialize(1, "lo")
     else:
         ChannelFactoryInitialize(0, sys.argv[1])
 
-    # Create a publisher to publish the data defined in UserData class
-    pub = ChannelPublisher("rt/lowcmd", LowCmd_)
-    pub.Init()
-    
+    low_cmd_suber = ChannelSubscriber("rt/lowcmd", LowCmd_)
+    low_cmd_suber.Init(LowCmdHandler, 10)
     low_state_suber = ChannelSubscriber("rt/lowstate", LowState_)
     low_state_suber.Init(LowStateHandler, 10)
 
@@ -63,36 +107,6 @@ if __name__ == '__main__':
 
     while True:
         step_start = time.perf_counter()
-
         runing_time += dt
-        #print("runing_time: ", runing_time)
-
-        if (runing_time < 3.0):
-            # Stand up in first 3 second
-            
-            # Total time for standing up or standing down is about 1.2s
-            phase = np.tanh(runing_time / 1.2)
-            for i in range(12):
-                cmd.motor_cmd[i].q = phase * stand_up_joint_pos[i] + (
-                    1 - phase) * stand_down_joint_pos[i]
-                cmd.motor_cmd[i].kp = phase * 50.0 + (1 - phase) * 20.0
-                cmd.motor_cmd[i].dq = 0.0
-                cmd.motor_cmd[i].kd = 3.5
-                cmd.motor_cmd[i].tau = 0.0
-        else:
-            # Then stand down
-            phase = np.tanh((runing_time - 3.0) / 1.2)
-            for i in range(12):
-                cmd.motor_cmd[i].q = phase * stand_down_joint_pos[i] + (
-                    1 - phase) * stand_up_joint_pos[i]
-                cmd.motor_cmd[i].kp = 50.0
-                cmd.motor_cmd[i].dq = 0.0
-                cmd.motor_cmd[i].kd = 3.5
-                cmd.motor_cmd[i].tau = 0.0
-
         cmd.crc = crc.Crc(cmd)
-        pub.Write(cmd)
-
-        time_until_next_step = dt - (time.perf_counter() - step_start)
-        if time_until_next_step > 0:
-            time.sleep(time_until_next_step)
+        time.sleep(max(0, dt - (time.perf_counter() - step_start)))
