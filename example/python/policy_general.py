@@ -72,9 +72,11 @@ class PolicyVicClass:
         self.default_pos = torch.tensor(self.cfg.env.default_pos).to(self.device)
         self.stand_up_joint_pos = np.array(self.cfg.env.default_pos, dtype=float)[7:]
         self.action_scale = self.cfg.env.action_scale
+        self.p_gain = self.cfg.env.control.p_gain
+        self.d_gain = self.cfg.env.control.d_gain   
 
         self.dt_fast = 0.001
-        self.dt_slow = 0.01
+        self.dt_slow = 0.02
         self.runing_time = 0.0
         self.runing_time_slow = 0.0
         self.runing_time_fast = 0.0
@@ -177,8 +179,8 @@ class PolicyVicClass:
     def HighStateHandler(self, msg: SportModeState_):
         glob__lin_vel = np.array(msg.velocity)
         local_vel = self.rotate_vector(self.quat_invert(self.quaternion), glob__lin_vel) * 2.0
-        self.obs[:3] =torch.tensor(local_vel).to(self.device)
-        #self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
+        #self.obs[:3] =torch.tensor(local_vel).to(self.device)
+        self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
     def on_press(self, key):
         global stop_loop
         try:
@@ -282,15 +284,17 @@ class PolicyVicClass:
             if self.policy_id[0] == 0:
                 m = (self.stiff_range[0] + self.stiff_range[1]) / 2
                 r = (self.stiff_range[1] - self.stiff_range[0]) / 2
-                #print(f"Observations : {self.obs}")
+                print(f"Observations : {self.obs}")
                 actions = self.actor_critic.forward(self.obs)
                 last_action = actions
                 scaled_action = actions[:12] * self.action_scale
+                print(f"Actions: {scaled_action}")
                 scaled_action[0] = scaled_action[0] * self.cfg.env.hip_scale
                 scaled_action[3] = scaled_action[3] * self.cfg.env.hip_scale
                 scaled_action[6] = scaled_action[6] * self.cfg.env.hip_scale
                 scaled_action[9] = scaled_action[9] * self.cfg.env.hip_scale
                 target_dof_pos = scaled_action + self.default_pos[7:]
+                print(f"target_dof_pos: {target_dof_pos}")
                 Kp= torch.ones(12)
                 if self.control_mode == "VIC_1":
                     action_stiffness = torch.tile(actions[12:], (4,))
@@ -338,9 +342,9 @@ class PolicyVicClass:
                     if self.control_mode == "P":
                         for i in range(12):
                             cmd.motor_cmd[i].q = target_dof_pos[i]
-                            cmd.motor_cmd[i].kp = self.cfg.env.control.p_gain
+                            cmd.motor_cmd[i].kp = self.p_gain
                             cmd.motor_cmd[i].dq = 0.0
-                            cmd.motor_cmd[i].kd = self.cfg.env.control.d_gain
+                            cmd.motor_cmd[i].kd = self.d_gain
                             cmd.motor_cmd[i].tau = 0.0
 
                 elif self.policy_id[0] == 1:
