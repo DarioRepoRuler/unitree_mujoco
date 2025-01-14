@@ -2,7 +2,8 @@ import time
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-from threading import Thread
+from threading import Thread, Lock
+from collections import deque
 
 from unitree_sdk2py.core.channel import ChannelPublisher, ChannelSubscriber
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize
@@ -11,57 +12,75 @@ from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowCmd_
 from unitree_sdk2py.utils.crc import CRC
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_
 
-
+# Constants
 dt = 0.002
 runing_time = 0.0
 crc = CRC()
+MAX_DATA_POINTS = 500  # Limit the size of data for plotting
 
-# Initialize a list to store kp values for live plotting
-kp_values = {f'kp_{i}': [] for i in range(12)}
+# Data structures for live plotting with thread-safe operations
+kp_values = {f'kp_{i}': deque(maxlen=MAX_DATA_POINTS) for i in range(12)}
+torque_values = {f'torque_{i}': deque(maxlen=MAX_DATA_POINTS) for i in range(12)}
+data_lock = Lock()  # To protect shared data between threads
 
-# Define a function to update the live plot
-def live_plot():
+# Define a function to update the live plot for kp
+def live_plot_kp():
     plt.ion()
     fig, ax = plt.subplots()
     ax.set_title("Live kp Values")
     ax.set_xlabel("Time Steps")
     ax.set_ylabel("Stiffness (Kp)")
-    lines = []
-    for i in range(12):
-        line, = ax.plot([], [], label=f'kp_{i}')
-        lines.append(line)
+    lines = [ax.plot([], [], label=f'kp_{i}')[0] for i in range(12)]
     ax.legend()
+    update_interval = 0.1  # Time in seconds between plot updates
 
     while True:
-        for i, line in enumerate(lines):
-            line.set_ydata(kp_values[f'kp_{i}'])
-            line.set_xdata(range(len(kp_values[f'kp_{i}'])))
+        time.sleep(update_interval)
+        with data_lock:
+            for i, line in enumerate(lines):
+                line.set_data(range(len(kp_values[f'kp_{i}'])), list(kp_values[f'kp_{i}']))
         ax.relim()
         ax.autoscale_view()
         fig.canvas.draw()
         fig.canvas.flush_events()
-        time.sleep(0.1)  # Adjust sleep to balance CPU usage and responsiveness
 
+# Define a function to update the live plot for torque
+def live_plot_torque():
+    plt.ion()
+    fig, ax = plt.subplots()
+    ax.set_title("Live torque Values")
+    ax.set_xlabel("Time Steps")
+    ax.set_ylabel("Torque [Nm]")
+    lines = [ax.plot([], [], label=f'torque_{i}')[0] for i in range(12)]
+    ax.legend()
+    update_interval = 0.1  # Time in seconds between plot updates
+
+    while True:
+        time.sleep(update_interval)
+        with data_lock:
+            for i, line in enumerate(lines):
+                line.set_data(range(len(torque_values[f'torque_{i}'])), list(torque_values[f'torque_{i}']))
+        ax.relim()
+        ax.autoscale_view()
+        fig.canvas.draw()
+        fig.canvas.flush_events()
 
 def LowStateHandler(msg: LowState_):
-    foot_force = msg.foot_force
-    print("foot_force: ", foot_force)
-    
+    with data_lock:
+        for i in range(12):
+            torque_values[f'torque_{i}'].append(msg.motor_state[i].tau_est)
+
 def LowCmdHandler(msg: LowCmd_):
-    print("LowCmdHandler")
-    print(f"Motor command: {msg.motor_cmd[0].kp}")
-    for i in range(12):
-        kp_values[f'kp_{i}'].append(msg.motor_cmd[i].kp)
-        # Limit the size of kp_values to avoid memory issues
-        if len(kp_values[f'kp_{i}']) > 1000:
-            kp_values[f'kp_{i}'].pop(0)
+    with data_lock:
+        for i in range(12):
+            kp_values[f'kp_{i}'].append(msg.motor_cmd[i].kp)
 
 input("Press enter to start")
 
 if __name__ == '__main__':
-    # Start the live plotting thread
-    plot_thread = Thread(target=live_plot, daemon=True)
-    plot_thread.start()
+    # Start the live plotting threads
+    Thread(target=live_plot_kp, daemon=True).start()
+    Thread(target=live_plot_torque, daemon=True).start()
 
     if len(sys.argv) < 2:
         ChannelFactoryInitialize(1, "lo")
@@ -88,10 +107,6 @@ if __name__ == '__main__':
 
     while True:
         step_start = time.perf_counter()
-
         runing_time += dt
         cmd.crc = crc.Crc(cmd)
-
-        # time_until_next_step = dt - (time.perf_counter() - step_start)
-        # if time_until_next_step > 0:
-        time.sleep(0.01)
+        time.sleep(max(0, dt - (time.perf_counter() - step_start)))
