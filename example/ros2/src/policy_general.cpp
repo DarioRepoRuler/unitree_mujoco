@@ -19,6 +19,9 @@
 #include <filesystem>
 
 #include <cmath>
+#include <vector>
+// #include "matplotlibcpp.h" // Include the matplotlib-cpp header
+// namespace plt = matplotlibcpp;
 
 #define INFO_IMU 1          // Set 1 to info IMU states
 #define INFO_MOTOR 1        // Set 1 to info motor states
@@ -94,6 +97,35 @@ public:
     }
 
 private:
+    void log_kp_and_torques(const std::vector<float>& kp, const std::string& filename) {
+        std::ofstream logfile;
+        logfile.open(filename, std::ios_base::app); // Open in append mode
+
+        if (!logfile.is_open()) {
+            std::cerr << "Failed to open log file: " << filename << std::endl;
+            return;
+        }
+
+        // Log the current time or iteration
+        logfile << "Time: " << runing_time_fast << "\n";
+
+        // Log kp values
+        logfile << "KP: ";
+        for (const auto& value : kp) {
+            logfile << value << ",";
+        }
+        logfile << "\n";
+
+        // // Log torque values
+        // logfile << "Torques: ";
+        // for (const auto& value : torques) {
+        //     logfile << value << ",";
+        // }
+        logfile << "\n";
+
+        logfile.close();
+    }
+
     void topic_low_callback(unitree_go::msg::LowState::SharedPtr data)
     {
         if (INFO_IMU)
@@ -222,6 +254,7 @@ private:
                         
                         target_kp[i+j] = std_stiffness* (m + r * actions[i+12]);
                         target_kd[i+j] = 0.2 * sqrt(target_kp[i+j]);
+                        // kp_values.push_back(target_kp[i+j]);
                     }                  
                 }
             }
@@ -231,6 +264,7 @@ private:
                         target_kp[i*3+j] = std_stiffness* (m + r * actions[i+12]);
                         target_kd[i*3+j] = 0.2 * sqrt(target_kp[i+j]);
                         //std::cout<< "Index" << i+j << " | Stiffness: " << target_kp[i*3+j] << " | Damping: " << target_kd[i*3+j] << std::endl;
+                        // kp_values.push_back(target_kp[i*3+j]);
                     }                  
                 }
                 
@@ -239,6 +273,7 @@ private:
                 for (int i = 0;i<12;i++){
                     target_kp[i] = std_stiffness* (m +r * actions[i+12]);
                     target_kd[i] = 0.2 * sqrt(target_kp[i]);
+                    
                 }
             }
         }
@@ -250,12 +285,13 @@ private:
             }
         }
         
+
         
     }
 
     void fast_timer_callback()
     {
-        
+        std::vector<float> kp_values;
         auto start_time = std::chrono::high_resolution_clock::now();
         runing_time_fast += dt_fast;
         if (runing_time_fast < 3.0 && policy_id ==0)
@@ -316,7 +352,10 @@ private:
                     low_cmd_.motor_cmd[i].kp = target_kp[i];
                     low_cmd_.motor_cmd[i].kd = target_kd[i];
                     low_cmd_.motor_cmd[i].tau = 0;
+                    kp_values.push_back(target_kp[i]);
                 }
+                // Log kp and torques
+                log_kp_and_torques(kp_values,  "kp_torques_log.csv");
             }
             
         }
