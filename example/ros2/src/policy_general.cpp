@@ -2,6 +2,7 @@
 #include "unitree_go/msg/low_cmd.hpp"
 #include "unitree_go/msg/low_state.hpp"
 #include "unitree_go/msg/sport_mode_state.hpp"
+#include "unitree_go/msg/wireless_controller.hpp"
 #include "motor_crc.h"
 #include <chrono>
 #include <iostream>
@@ -63,12 +64,14 @@ public:
         {
         topic_high_name = "sportmodestate";
         }
+        auto topic_controller = "wirelesscontroller";
         suber_low_state = this->create_subscription<unitree_go::msg::LowState>(
             topic_low_name, 10, std::bind(&LowLevelNode::topic_low_callback, this, _1));
 
         suber_high_state = this->create_subscription<unitree_go::msg::SportModeState>(
             topic_high_name, 10, std::bind(&LowLevelNode::topic_high_callback, this, _1));
-
+        suber_wirelesscontroller= this->create_subscription<unitree_go::msg::WirelessController>(
+        topic_controller, 10, std::bind(&LowLevelNode::topic_controller_callback,this, _1));
         // Set up publisher
         cmd_puber_ = this->create_publisher<unitree_go::msg::LowCmd>("/lowcmd", 10);
 
@@ -196,6 +199,17 @@ private:
         // }
         // RCLCPP_INFO(this->get_logger(), "Policy commands: [%f, %f, %f]", policy_commands[0], policy_commands[1], policy_commands[2]);
         
+    }
+    void topic_controller_callback(unitree_go::msg::WirelessController::SharedPtr data){
+        joystick_L[0]=data->lx;
+        joystick_L[1]=data->ly;
+        joystick_R[0]=data->rx;
+        joystick_R[1]=data->ry;
+        //RCLCPP_INFO(this->get_logger(), "Joystick lx %f ly %f", joystick_L[0], joystick_L[1]);
+        RCLCPP_INFO(this->get_logger(), "Joystick rx %f ry %f", joystick_R[0], joystick_R[1]);
+        policy_commands[1] = -joystick_L[0]*0.5;
+        policy_commands[0] =joystick_L[1]*0.5;
+        policy_commands[2]=joystick_R[0]*0.7;
     }
 
     void topic_high_callback(unitree_go::msg::SportModeState::SharedPtr data)
@@ -355,7 +369,7 @@ private:
                     kp_values.push_back(target_kp[i]);
                 }
                 // Log kp and torques
-                log_kp_and_torques(kp_values,  "kp_torques_log.csv");
+                log_kp_and_torques(kp_values,  "kp_varstiff_7_5kg.csv");
             }
             
         }
@@ -519,6 +533,7 @@ private:
     // ROS2 publisher and subscriber
     rclcpp::Subscription<unitree_go::msg::LowState>::SharedPtr suber_low_state;
     rclcpp::Subscription<unitree_go::msg::SportModeState>::SharedPtr suber_high_state;
+    rclcpp::Subscription<unitree_go::msg::WirelessController>::SharedPtr suber_wirelesscontroller;
     rclcpp::Publisher<unitree_go::msg::LowCmd>::SharedPtr cmd_puber_;
     //rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::TimerBase::SharedPtr timer_slow_;
@@ -559,6 +574,8 @@ private:
     double runing_time_fast;
     double time_offset = -1.0;
     double phase;
+    float joystick_L[2]={0.0f,0.0f};
+    float joystick_R[2]={0.0f,0.0f};
     int offset;
     std::string control_type;
 
@@ -658,8 +675,8 @@ void listenForKeyPress() {
                 switch (ch) {
                     case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.025f, 1.2f); break;
                     case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.025f, -1.2f); break;
-                    case 256 + 'C': policy_commands[1] =std::max(policy_commands[1]-0.05f, -1.2f); break;
-                    case 256 + 'D': policy_commands[1] =std::min(policy_commands[1]+0.05f, 1.2f); break;
+                    case 256 + 'C': policy_commands[2] =std::max(policy_commands[2]-0.05f, -1.2f); break;
+                    case 256 + 'D': policy_commands[2] =std::min(policy_commands[2]+0.05f, 1.2f); break;
                     // Add more cases for other special keys if needed
                 }
             } else {
