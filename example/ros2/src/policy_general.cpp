@@ -207,9 +207,9 @@ private:
         joystick_R[1]=data->ry;
         //RCLCPP_INFO(this->get_logger(), "Joystick lx %f ly %f", joystick_L[0], joystick_L[1]);
         RCLCPP_INFO(this->get_logger(), "Joystick rx %f ry %f", joystick_R[0], joystick_R[1]);
-        policy_commands[1] = -joystick_L[0]*0.5;
-        policy_commands[0] =joystick_L[1]*0.5;
-        policy_commands[2]=joystick_R[0]*0.7;
+        policy_commands[1] = -joystick_L[0]*0.8;
+        policy_commands[0] =joystick_L[1]*0.8;
+        policy_commands[2]=-joystick_R[0];
     }
 
     void topic_high_callback(unitree_go::msg::SportModeState::SharedPtr data)
