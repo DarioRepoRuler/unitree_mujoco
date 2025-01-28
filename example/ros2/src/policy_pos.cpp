@@ -500,8 +500,8 @@ private:
     //float rotation_matrix[3][3]; // just for rotation 
     float gravity_world[3] = {0.0, 0.0, -1.0};
     float actions[24];
-    float std_stiffness = 20.0;
-    float std_damp = 0.6;
+    float std_stiffness = 50.0;
+    float std_damp = 1.0;
     float m = (1.5 + 0.5)/2;
     float r = (1.5 - 0.5)/2;
     
@@ -640,7 +640,7 @@ int main(int argc, char **argv)
     try {
         // Get the path to the executable
         std::filesystem::path exePath = std::filesystem::canonical(argv[0]);
-        std::filesystem::path modelPath = exePath.parent_path() / "p20_model.pt";
+        std::filesystem::path modelPath = exePath.parent_path() / "p50_model.pt";
         std::cout << "Model path: " << modelPath.string() << std::endl;
         // Load the model
         model = torch::jit::load(modelPath.string());
