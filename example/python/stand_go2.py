@@ -6,6 +6,7 @@ from unitree_sdk2py.core.channel import ChannelPublisher, ChannelSubscriber
 from unitree_sdk2py.core.channel import ChannelFactoryInitialize
 from unitree_sdk2py.idl.default import unitree_go_msg_dds__LowCmd_
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowCmd_
+from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_
 from unitree_sdk2py.utils.crc import CRC
 
 stand_up_joint_pos = np.array([
@@ -26,16 +27,25 @@ crc = CRC()
 
 input("Press enter to start")
 
+
+def LowStateHandler(msg: LowState_):
+    print("Accelerometer: ", msg.imu_state.accelerometer)
+
+
 if __name__ == '__main__':
 
     if len(sys.argv) <2:
         ChannelFactoryInitialize(1, "lo")
     else:
+        print(sys.argv[1])
         ChannelFactoryInitialize(0, sys.argv[1])
 
     # Create a publisher to publish the data defined in UserData class
     pub = ChannelPublisher("rt/lowcmd", LowCmd_)
     pub.Init()
+
+    low_state_suber = ChannelSubscriber("rt/lowstate", LowState_)
+    low_state_suber.Init(LowStateHandler, 10)
 
     cmd = unitree_go_msg_dds__LowCmd_()
     cmd.head[0] = 0xFE
@@ -54,7 +64,7 @@ if __name__ == '__main__':
         step_start = time.perf_counter()
 
         runing_time += dt
-        print("runing_time: ", runing_time)
+        # print("runing_time: ", runing_time)
 
         if (runing_time < 3.0):
             # Stand up in first 3 second
