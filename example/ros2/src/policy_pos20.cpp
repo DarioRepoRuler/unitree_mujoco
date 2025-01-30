@@ -19,9 +19,6 @@
 #include <filesystem>
 
 #include <cmath>
-#include <vector>
-// #include "matplotlibcpp.h" // Include the matplotlib-cpp header
-// namespace plt = matplotlibcpp;
 
 #define INFO_IMU 1          // Set 1 to info IMU states
 #define INFO_MOTOR 1        // Set 1 to info motor states
@@ -49,7 +46,7 @@ public:
             runing_time_slow(0.0),
             runing_time_fast(0.0),
             phase(0.0),
-            control_type("VIC_2"), 
+            control_type("P"), 
             model(model)    
         {
         // Set up subscriber
@@ -97,6 +94,7 @@ public:
     }
 
 private:
+
     void log_kp_and_torques(const std::vector<float>& kp, const std::string& filename) {
         std::ofstream logfile;
         logfile.open(filename, std::ios_base::app); // Open in append mode
@@ -200,10 +198,10 @@ private:
                 foot_force_est_[i] = data->foot_force_est[i];
             }
 
-            RCLCPP_INFO(this->get_logger(), "Foot force -- foot0: %d; foot1: %d; foot2: %d; foot3: %d",
-                        foot_force_[0], foot_force_[1], foot_force_[2], foot_force_[3]);
-            RCLCPP_INFO(this->get_logger(), "Estimated foot force -- foot0: %d; foot1: %d; foot2: %d; foot3: %d",
-                        foot_force_est_[0], foot_force_est_[1], foot_force_est_[2], foot_force_est_[3]);
+            // RCLCPP_INFO(this->get_logger(), "Foot force -- foot0: %d; foot1: %d; foot2: %d; foot3: %d",
+            //             foot_force_[0], foot_force_[1], foot_force_[2], foot_force_[3]);
+            // RCLCPP_INFO(this->get_logger(), "Estimated foot force -- foot0: %d; foot1: %d; foot2: %d; foot3: %d",
+            //             foot_force_est_[0], foot_force_est_[1], foot_force_est_[2], foot_force_est_[3]);
         }
 
         if (INFO_BATTERY)
@@ -234,7 +232,7 @@ private:
             observations[i] = 0.0;//local_v[i]*2.0;
         }
 
-        // RCLCPP_INFO(this->get_logger(), "Base velocity -- vx: %f; vy: %f; vz: %f", local_v[0], local_v[1], local_v[2]);
+        RCLCPP_INFO(this->get_logger(), "Base velocity -- vx: %f; vy: %f; vz: %f", local_v[0], local_v[1], local_v[2]);
         // RCLCPP_INFO(this->get_logger(), "Position -- x: %f; y: %f; z: %f; body height: %f",
         //         data->position[0], data->position[1], data->position[2], data->body_height);
         // RCLCPP_INFO(this->get_logger(), "Velocity -- vx: %f; vy: %f; vz: %f; yaw: %f",
@@ -244,6 +242,7 @@ private:
     void slow_timer_callback()
     {   
         std::vector<float> kp_values;
+        
         for (int i=0; i<3; i++)
         {
             observations[i+45+offset] = policy_commands[i]*2.0;
@@ -270,6 +269,7 @@ private:
                 else{
                     target_dof_pos[i] = actions[i]*action_scale + default_motor_pos[i];
                 }
+                kp_values.push_back(std_stiffness);
             }
             if (control_type == "VIC_1"){
                 for (int i = 0;i<3;i++){ //  every additional stiffness
@@ -277,7 +277,6 @@ private:
                         
                         target_kp[i+j] = std_stiffness* (m + r * actions[i+12]);
                         target_kd[i+j] = 0.2 * sqrt(target_kp[i+j]);
-                        // kp_values.push_back(target_kp[i+j]);
                     }                  
                 }
             }
@@ -287,7 +286,6 @@ private:
                         target_kp[i*3+j] = std_stiffness* (m + r * actions[i+12]);
                         target_kd[i*3+j] = 0.2 * sqrt(target_kp[i+j]);
                         //std::cout<< "Index" << i+j << " | Stiffness: " << target_kp[i*3+j] << " | Damping: " << target_kd[i*3+j] << std::endl;
-                        kp_values.push_back(target_kp[i*3+j]);
                     }                  
                 }
                 
@@ -296,7 +294,6 @@ private:
                 for (int i = 0;i<12;i++){
                     target_kp[i] = std_stiffness* (m +r * actions[i+12]);
                     target_kd[i] = 0.2 * sqrt(target_kp[i]);
-                    
                 }
             }
         }
@@ -309,17 +306,12 @@ private:
         }
         
         // Log kp and torques
-        log_kp_and_torques(kp_values,  "kp_torques_log_vic.csv");
-
-
-
-
-        
+        log_kp_and_torques(kp_values,  "kp_torques_log_pos20.csv");
     }
 
     void fast_timer_callback()
     {
-        std::vector<float> kp_values;
+        
         auto start_time = std::chrono::high_resolution_clock::now();
         runing_time_fast += dt_fast;
         if (runing_time_fast < 3.0 && policy_id ==0)
@@ -365,7 +357,7 @@ private:
                     low_cmd_.motor_cmd[i].q = target_dof_pos[i];
                     low_cmd_.motor_cmd[i].dq = 0;
                     low_cmd_.motor_cmd[i].kp = std_stiffness;
-                    low_cmd_.motor_cmd[i].kd = 1.0;
+                    low_cmd_.motor_cmd[i].kd = std_damp;
                     low_cmd_.motor_cmd[i].tau = 0;
                 }
             }
@@ -380,9 +372,7 @@ private:
                     low_cmd_.motor_cmd[i].kp = target_kp[i];
                     low_cmd_.motor_cmd[i].kd = target_kd[i];
                     low_cmd_.motor_cmd[i].tau = 0;
-                    kp_values.push_back(target_kp[i]);
                 }
-                
             }
             
         }
@@ -436,9 +426,8 @@ private:
 
     void postprocess_output()
     {
-
         // Log foot force data
-        log_foot_forces("foot_force_log_vic.csv");
+        log_foot_forces("foot_force_log_pos20.csv");
         // Convert tensor to array and use the output
         auto output_data = model_output.accessor<float, 2>();
         // Example: use the output data
@@ -570,7 +559,8 @@ private:
     //float rotation_matrix[3][3]; // just for rotation 
     float gravity_world[3] = {0.0, 0.0, -1.0};
     float actions[24];
-    float std_stiffness = 40.0;
+    float std_stiffness = 20.0;
+    float std_damp = 0.6;
     float m = (1.5 + 0.5)/2;
     float r = (1.5 - 0.5)/2;
     
@@ -709,7 +699,7 @@ int main(int argc, char **argv)
     try {
         // Get the path to the executable
         std::filesystem::path exePath = std::filesystem::canonical(argv[0]);
-        std::filesystem::path modelPath = exePath.parent_path() / "vic2_model.pt";
+        std::filesystem::path modelPath = exePath.parent_path() / "p20_model.pt";
         std::cout << "Model path: " << modelPath.string() << std::endl;
         // Load the model
         model = torch::jit::load(modelPath.string());

@@ -69,6 +69,7 @@ def LowStateHandler(msg: LowState_):
     with data_lock:
         for i in range(12):
             torque_values[f'torque_{i}'].append(msg.motor_state[i].tau_est)
+        
 
 def LowCmdHandler(msg: LowCmd_):
     with data_lock:
