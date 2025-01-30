@@ -203,10 +203,10 @@ private:
                 foot_force_est_[i] = data->foot_force_est[i];
             }
 
-            RCLCPP_INFO(this->get_logger(), "Foot force -- foot0: %d; foot1: %d; foot2: %d; foot3: %d",
-                        foot_force_[0], foot_force_[1], foot_force_[2], foot_force_[3]);
-            RCLCPP_INFO(this->get_logger(), "Estimated foot force -- foot0: %d; foot1: %d; foot2: %d; foot3: %d",
-                        foot_force_est_[0], foot_force_est_[1], foot_force_est_[2], foot_force_est_[3]);
+            // RCLCPP_INFO(this->get_logger(), "Foot force -- foot0: %d; foot1: %d; foot2: %d; foot3: %d",
+            //             foot_force_[0], foot_force_[1], foot_force_[2], foot_force_[3]);
+            // RCLCPP_INFO(this->get_logger(), "Estimated foot force -- foot0: %d; foot1: %d; foot2: %d; foot3: %d",
+            //             foot_force_est_[0], foot_force_est_[1], foot_force_est_[2], foot_force_est_[3]);
         }
 
         if (INFO_BATTERY)
@@ -228,11 +228,16 @@ private:
         joystick_L[1]=data->ly;
         joystick_R[0]=data->rx;
         joystick_R[1]=data->ry;
+        key =data->keys; //'A': 256, 'B':512, 'X': 1024, 'Y':2048
         //RCLCPP_INFO(this->get_logger(), "Joystick lx %f ly %f", joystick_L[0], joystick_L[1]);
         RCLCPP_INFO(this->get_logger(), "Joystick rx %f ry %f", joystick_R[0], joystick_R[1]);
+        RCLCPP_INFO(this->get_logger(), "Key %d", key);
         policy_commands[1] = -joystick_L[0]*0.8;
         policy_commands[0] =joystick_L[1]*0.8;
         policy_commands[2]=-joystick_R[0];
+        if(key==256) policy_id = 0;
+        if(key==512) policy_id = 1;
+
     }
 
     void topic_high_callback(unitree_go::msg::SportModeState::SharedPtr data)
@@ -323,7 +328,7 @@ private:
         }
         
         // Log kp and torques
-        log_kp_and_torques(kp_values,  "kp_torques_log_vic.csv");
+        //log_kp_and_torques(kp_values,  "kp_torques_log_vic.csv");
 
 
 
@@ -361,7 +366,7 @@ private:
             {
                 low_cmd_.motor_cmd[i].q = phase * stand_down_joint_pos_[i] + (1 - phase) * default_motor_pos[i];
                 low_cmd_.motor_cmd[i].dq = 0;
-                low_cmd_.motor_cmd[i].kp =30.0;
+                low_cmd_.motor_cmd[i].kp =40.0;
                 low_cmd_.motor_cmd[i].kd = 3.6;
                 low_cmd_.motor_cmd[i].tau = 0;
             }
@@ -595,9 +600,9 @@ private:
 
     // Data members for publisher
     unitree_go::msg::LowCmd low_cmd_;
-    double stand_up_joint_pos_[12] = {-0.1, 0.9, -1.8, 0.1, 0.9, -1.8, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8};
-    double stand_down_joint_pos_[12] = {0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375,
-                                        0.15, 1.22187, -2.44375, -0.15, 1.22187, -2.44375};
+    //double stand_up_joint_pos_[12] = {-0.1, 0.9, -1.8, 0.1, 0.9, -1.8, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8};
+    double stand_down_joint_pos_[12] = {0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375, -0.473455,
+                                       1.7, -2.7, 0.473455, 1.7, -2.7};
     // float default_motor_pos[12] = {-0.1, 0.9, -1.8, 0.1, 0.9, -1.8, -0.1, 0.9, -1.8, 0.1, 0.9, -1.8  };
     float default_motor_pos[12] = {-0.1, 0.8, -1.5, 0.1, 0.8, -1.5, -0.1, 1.0, -1.5, 0.1, 1.0, -1.5};
     double dt_fast;
@@ -608,6 +613,7 @@ private:
     double phase;
     float joystick_L[2]={0.0f,0.0f};
     float joystick_R[2]={0.0f,0.0f};
+    int key;
     int offset;
     std::string control_type;
 
