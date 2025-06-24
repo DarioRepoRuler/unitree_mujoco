@@ -5,11 +5,10 @@ This repository extends the functionality of the existing `unitree_mujoco` simul
 - **Simulation**: Test and validate policies in a controlled virtual environment.
     ![Simulation Demo](doc/simulation_demo.gif)
 - **Hardware Execution**: Deploy policies directly on physical robots for real-world testing.
-    <div style="display: flex; justify-content: space-between; gap: 10px;">
-            <img src="./doc/forward.gif" alt="Forward Movement" style="width: 32%;">
-            <img src="./doc/sidewards.gif" alt="Sidewards Movement" style="width: 32%;">
-            <img src="./doc/rotate.gif" alt="Rotate Movement" style="width: 32%;">
-    </div>
+
+| ![Forward Movement](./doc/forward.gif) | ![Sidewards Movement](./doc/sidewards.gif) | ![Rotate Movement](./doc/rotate.gif) |
+|:--------------------------------------:|:------------------------------------------:|:------------------------------------:|
+| Forward Movement                       | Sidewards Movement                         | Rotate Movement                      |
 
 This repository bridges the gap between simulation and physical deployment, providing tools and examples to streamline the transition from virtual testing to real-world application.
 
