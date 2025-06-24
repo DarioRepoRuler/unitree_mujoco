@@ -525,35 +525,79 @@ void listenForKeyPress() {
                 rclcpp::shutdown();  // Signal to shutdown ROS2
                 break;
             }
-            
-            else if (ch == 's' || ch == 'S') {
+            // Use space key for setting policy_id to 0 (stand)
+            else if (ch == ' ') {
+                std::cout << "Stand mode activated\n";
                 policy_id = 0;
                 policy_commands[0] = 0.0;
                 policy_commands[1] = 0.0;
                 policy_commands[2] = 0.0;
             }
-            else if (ch == 'd' || ch == 'D') {
+            // Add WASD controls
+            else if (ch == 'w' || ch == 'W') {
+                policy_commands[0] = std::min(policy_commands[0] + 0.1f, 1.2f);
+                std::cout << "Forward: " << policy_commands[0] << std::endl;
+            }
+            else if (ch == 's' || ch == 'S') {  // Now 's' can be used for backward
+                policy_commands[0] = std::max(policy_commands[0] - 0.1f, -1.2f);
+                std::cout << "Backward: " << policy_commands[0] << std::endl;
+            }
+            else if (ch == 'A') {
+                policy_commands[1] = std::min(policy_commands[1] + 0.1f, 1.2f);
+                std::cout << "Left: " << policy_commands[2] << std::endl;
+            }
+            else if (ch == 'a') {
+                policy_commands[1] = std::min(policy_commands[1] + 0.1f, 1.2f);
+                std::cout << "Left: " << policy_commands[1] << std::endl;
+            }
+            else if (ch == 'D') {
+                policy_commands[1] = std::max(policy_commands[1] - 0.1f, -1.2f);
+                std::cout << "Right: " << policy_commands[2] << std::endl;
+            }
+            else if (ch == 'd') {
+                policy_commands[1] = std::max(policy_commands[1] - 0.1f, -1.2f);
+                std::cout << "Right: " << policy_commands[1] << std::endl;
+            }
+            else if (ch == 'l' || ch == 'L') {
+                std::cout << "[L]aying down\n";
                 policy_id = 1;
                 policy_commands[0] = 0.0;
                 policy_commands[1] = 0.0;
                 policy_commands[2] = 0.0;
             }
-            else if (ch=='0') {
+            else if (ch == 'e' || ch == 'E') {
+                std::cout << "[E]mergency mode\n";
+                policy_id = 1;
                 policy_commands[0] = 0.0;
                 policy_commands[1] = 0.0;
                 policy_commands[2] = 0.0;
             }
+            else if (ch=='n' || ch == 'N') {
+                std::cout << "Reset commands to zero\n";
+                policy_commands[0] = 0.0;
+                policy_commands[1] = 0.0;
+                policy_commands[2] = 0.0;
+            }
+            // Add rotation controls
+            else if (ch == 'z' || ch == 'Z') {
+                policy_commands[2] = std::min(policy_commands[2] + 0.1f, 1.2f);
+                std::cout << "Rotate left: " << policy_commands[2] << std::endl;
+            }
+            else if (ch == 'c' || ch == 'C') {
+                policy_commands[2] = std::max(policy_commands[2] - 0.1f, -1.2f);
+                std::cout << "Rotate right: " << policy_commands[2] << std::endl;
+            }
             // Handle special keys
             else if (ch >= 256) {
                 switch (ch) {
-                    case 256 + 'A': policy_commands[0] =std::min(policy_commands[0]+0.025f, 1.2f); break;
-                    case 256 + 'B': policy_commands[0] =std::max(policy_commands[0]-0.025f, -1.2f); break;
-                    case 256 + 'C': policy_commands[2] =std::max(policy_commands[2]-0.05f, -1.2f); break;
-                    case 256 + 'D': policy_commands[2] =std::min(policy_commands[2]+0.05f, 1.2f); break;
+                    case 256 + 'A': policy_commands[0] = std::min(policy_commands[0]+0.025f, 1.2f); break;
+                    case 256 + 'B': policy_commands[0] = std::max(policy_commands[0]-0.025f, -1.2f); break;
+                    case 256 + 'C': policy_commands[2] = std::max(policy_commands[2]-0.05f, -1.2f); break;
+                    case 256 + 'D': policy_commands[2] = std::min(policy_commands[2]+0.05f, 1.2f); break;
                     // Add more cases for other special keys if needed
                 }
             } else {
-                std::cout << "Key pressed: " << static_cast<char>(ch) << "\n";
+                //std::cout << "Key pressed: " << static_cast<char>(ch) << "\n";
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5)); // Small sleep to prevent busy waiting

@@ -15,7 +15,7 @@ from time import sleep
 import keyboard
 from pynput import keyboard
 import threading
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import hydra
 
 import yaml
@@ -32,6 +32,7 @@ class PolicyVicClass:
         self.num_single_priv_obs = cfg.env.single_obs_size_priv
         self.num_actions = 12
         self.control_mode = cfg.env.control_mode
+        self.convert_to_torch_script = cfg.convert_to_torch_script
         if self.control_mode == "P":
             self.num_actions += 0
             self.num_single_obs += 0
@@ -105,13 +106,18 @@ class PolicyVicClass:
         self.actor_critic = actor_critic
         print("Model loaded successfully")
         print(f"Output name: {self.cfg.env.control_mode}")
-        output_model_path = os.path.join(os.getcwd(), f"{self.cfg.env.control_mode}_model.pt")
-        self.convert_and_save_model(self.actor_critic, output_model_path)
+        if self.convert_to_torch_script:
+            print(f"Converting model to TorchScript")
+            if not os.path.exists(os.path.join(os.getcwd(), 'torchscript_model')):
+                os.makedirs(os.path.join(os.getcwd(), 'torchscript_model'))
+            output_model_path = os.path.join(os.getcwd(), 'torchscript_model',f"{self.cfg.env.control_mode}_model.pt")
+            self.convert_and_save_model(self.actor_critic, output_model_path)
+            print(f"Model converted to torchscript and saved to {output_model_path}")
 
 
     def load(self, path, actor_critic, device):
         try:
-            loaded_dict = torch.load(path, map_location=device, weights_only=True)
+            loaded_dict = torch.load(path, map_location=device, weights_only=False)
             actor_critic.load_state_dict(loaded_dict['model_state_dict'])
             actor_critic.eval()
             print(f"Model loaded successfully from {path}")
@@ -154,13 +160,6 @@ class PolicyVicClass:
     def LowStateHandler(self, msg: LowState_):
         self.quaternion[:] = torch.tensor(msg.imu_state.quaternion)
         ang_vel = np.array(msg.imu_state.gyroscope)
-        # accel = np.array(msg.imu_state.accelerometer)
-        # accel = torch.tensor(accel).to(self.device)
-        # local_vel = self.last_vel + accel*0.002
-        # print(f"Local vel: {local_vel}")
-        # self.obs[:3] = torch.tensor(local_vel*2.0).to(self.device)
-        # #print(f"Local vel: {local_vel}")
-        # self.last_vel = torch.tensor(local_vel).to(self.device)
         local_w = self.rotate_vector(self.quat_invert(np.array(self.quaternion)), ang_vel)
         self.obs[3:6] = torch.tensor(ang_vel).to(self.device) * 0.25
         proj_gravity = self.get_gravity_vector(np.array(self.quaternion))
@@ -179,32 +178,32 @@ class PolicyVicClass:
     def HighStateHandler(self, msg: SportModeState_):
         glob__lin_vel = np.array(msg.velocity)
         local_vel = self.rotate_vector(self.quat_invert(self.quaternion), glob__lin_vel) * 2.0
-        #self.obs[:3] =torch.tensor(local_vel).to(self.device)
-        self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
+        self.obs[:3] =torch.tensor(local_vel).to(self.device)
+        # self.obs[:3] = torch.tensor([0.0,0.0,0.0]).to(self.device)
     def on_press(self, key):
         global stop_loop
         try:
-            if key == keyboard.Key.up:
+            if key == keyboard.Key.up or key.char.lower() == 'w':
                 self.command[0] = torch.clamp(self.command[0] + 0.1, -1.2, 1.2)
-                #print(f"Command: {self.command}")
-            elif key == keyboard.Key.down:
+            elif key == keyboard.Key.down or key.char.lower() == 's':
                 self.command[0] = torch.clamp(self.command[0] - 0.1, -1.2, 1.2)
-                #print(f"Command: {self.command}")
-            elif key == keyboard.Key.left:
+            elif key == keyboard.Key.left or key.char =='a':
                 self.command[1] = torch.clamp(self.command[1] + 0.1, -1.2, 1.2)
-                #print(f"Command: {self.command}")
-            elif key == keyboard.Key.right:
+            elif key == keyboard.Key.right or key.char == 'd':
                 self.command[1] = torch.clamp(self.command[1] - 0.1, -1.2, 1.2)
-                #print(f"Command: {self.command}")
+            elif key.char == 'A':
+                self.command[2] = torch.clamp(self.command[2] + 0.1, -1.2, 1.2)
+            elif key.char == 'D':
+                self.command[2] = torch.clamp(self.command[2] - 0.1, -1.2, 1.2)
             elif key.char == 'e':
                 self.command[:] = 0.0
                 self.policy_id[0] = 1
-                #print(f"Policy changed to: {self.policy_id}")
             elif key.char == 'l':
                 print(f"[L]aying down")
                 self.command[:] = 0.0
                 self.policy_id[0] = 2
-            elif key.char == 's':
+            elif key == keyboard.Key.space or key.char == ' ':  # Changed from 'x' to space key
+                print(f"Stand mode activated")
                 self.policy_id[0] = 0
             elif key.char == 'n':
                 self.command[:] = 0.0
@@ -212,7 +211,12 @@ class PolicyVicClass:
                 stop_loop = True
                 return False
         except AttributeError:
-            print(f"Special key pressed: {key}")
+            # This handles special keys that don't have a char attribute
+            if key == keyboard.Key.space:  # Additional check for space in the AttributeError handler
+                print(f"Stand mode activated")
+                self.policy_id[0] = 0
+            else:
+                print(f"Special key pressed: {key}")
 
     def start_listener(self):
         with keyboard.Listener(on_press=self.on_press) as listener:
@@ -284,17 +288,17 @@ class PolicyVicClass:
             if self.policy_id[0] == 0:
                 m = (self.stiff_range[0] + self.stiff_range[1]) / 2
                 r = (self.stiff_range[1] - self.stiff_range[0]) / 2
-                print(f"Observations : {self.obs}")
+                # print(f"Observations : {self.obs}")
                 actions = self.actor_critic.forward(self.obs)
                 last_action = actions
                 scaled_action = actions[:12] * self.action_scale
-                print(f"Actions: {scaled_action}")
+                # print(f"Actions: {scaled_action}")
                 scaled_action[0] = scaled_action[0] * self.cfg.env.hip_scale
                 scaled_action[3] = scaled_action[3] * self.cfg.env.hip_scale
                 scaled_action[6] = scaled_action[6] * self.cfg.env.hip_scale
                 scaled_action[9] = scaled_action[9] * self.cfg.env.hip_scale
                 target_dof_pos = scaled_action + self.default_pos[7:]
-                print(f"target_dof_pos: {target_dof_pos}")
+                # print(f"target_dof_pos: {target_dof_pos}")
                 Kp= torch.ones(12)
                 if self.control_mode == "VIC_1":
                     action_stiffness = torch.tile(actions[12:], (4,))
@@ -402,9 +406,11 @@ class PolicyVicClass:
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
 
-@hydra.main(config_path='config', config_name='test_pos', version_base="1.2")
+@hydra.main(config_path='config', config_name='test', version_base="1.2")
 def test(cfg: DictConfig):
     print(f"Configuration: {cfg}")
+    OmegaConf.set_struct(cfg, False)
+    cfg.convert_to_torch_script = True
     policy_vic = PolicyVicClass(cfg)
     policy_vic.test(cfg)
 

@@ -8,3 +8,5 @@ libtorch_1_2/
 *.log
 *override*
 **/outputs/*
+*/outputs/*
+*.csv

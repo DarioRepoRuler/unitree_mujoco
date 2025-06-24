@@ -2,7 +2,7 @@ defaults:
   - _self_
   - policy: ppo
 
-ckpt_path:  'outputs/2024-12-18/09-23-48/checkpoints/last.pt' #'outputs/2024-11-26/10-30-57/checkpoints/model_1500.pt'  #'outputs/2024-11-24/09-54-02/checkpoints/last.pt' # #'outputs/2024-11-24/09-58-49/checkpoints/last.pt'
+ckpt_path:  'outputs/2024-12-17/20-48-12/checkpoints/last.pt' #'outputs/2024-11-26/10-30-57/checkpoints/model_1500.pt'  #'outputs/2024-11-24/09-54-02/checkpoints/last.pt' # #'outputs/2024-11-24/09-58-49/checkpoints/last.pt'
 
 env:
   action_scale: 0.5

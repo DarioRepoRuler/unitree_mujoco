@@ -1,4 +1,19 @@
 # Introduction
+This repository extends the functionality of the existing `unitree_mujoco` simulator by integrating AI-trained policies for advanced robotic locomotion. It is a direct outcome of the research presented in the paper [Variable Stiffness for Robust Locomotion through Reinforcement Learning](https://arxiv.org/abs/2502.09436). Designed to complement the [TALocoMotion](https://github.com/gautica/TALocoMotion) repository, which facilitates policy training, this repository enables seamless execution of trained policies in both simulation and hardware environments.
+
+### Features
+- **Simulation**: Test and validate policies in a controlled virtual environment.
+    ![Simulation Demo](doc/simulation_demo.gif)
+- **Hardware Execution**: Deploy policies directly on physical robots for real-world testing.
+    <div style="display: flex; justify-content: space-between; gap: 10px;">
+            <img src="./doc/forward.gif" alt="Forward Movement" style="width: 32%;">
+            <img src="./doc/sidewards.gif" alt="Sidewards Movement" style="width: 32%;">
+            <img src="./doc/rotate.gif" alt="Rotate Movement" style="width: 32%;">
+    </div>
+
+This repository bridges the gap between simulation and physical deployment, providing tools and examples to streamline the transition from virtual testing to real-world application.
+
+
 ## Unitree mujoco
 `unitree_mujoco` is a simulator developed based on `Unitree sdk2` and `mujoco`. Users can easily integrate the control programs developed with `Unitree_sdk2`, `unitree_ros2`, and `unitree_sdk2_python` into this simulator, enabling a seamless transition from simulation to physical development. The repository includes two versions of the simulator implemented in C++ and Python, with a structure as follows:
 ![](./doc/func.png)
@@ -27,6 +42,40 @@ Note:
 - [Mujoco Doc](https://mujoco.readthedocs.io/en/stable/overview.html)
 
 # Installation
+
+
+
+
+
+## Prerequisites
+
+### Install ROS 2 Humble / Foxy
+
+Follow the official ROS 2 Humble or Foxy installation instructions for Ubuntu development:  
+[ROS 2 Humble - Ubuntu Development Setup](https://docs.ros.org/en/humble/Installation/Alternatives/Ubuntu-Development-Setup.html)
+
+
+### 2. Clone and Set Up Required Repositories
+
+#### Unitree Mujoco
+Clone and follow the setup instructions from:  
+    [unitree_mujoco GitHub Repository](https://github.com/DarioRepoRuler/unitree_mujoco/tree/main?tab=readme-ov-file)
+
+#### Unitree SDK2  
+    [unitree_sdk2 GitHub Repository](https://github.com/unitreerobotics/unitree_sdk2)
+
+#### Unitree ROS2  
+    [unitree_ros2 GitHub Repository](https://github.com/unitreerobotics/unitree_ros2)
+
+> **Important:**  
+> In the `unitree_ros2` repository, ensure you checkout the correct branch (`humble` or `foxy`) for all repositories.  
+> Mismatched branches can cause build errors, especially **after building CycloneDDS**.
+
+
+
+
+
+
 ## C++ Simulator (simulate)
 ### 1. Dependencies
 #### unitree_sdk2
@@ -115,6 +164,28 @@ python3 ./test/test_unitree_sdk2.py
 ```
 The program will output the robot's pose and position information in the simulator, and each motor of the robot will continuously output 1Nm of torque.
 
+# Libtorch Setup (C++)
+Libtorch is necessary if you want to execute trained policies with C++. This is typically necessary if you are not so powerful hardware.
+
+When using the C++ scripts to execute the policies, make sure libtorch is porperly installed and setup.
+
+- Download LibTorch from the official PyTorch site: [Pytorch Site](https://pytorch.org/get-started/locally/)
+
+- Choose the correct version for C++ according to your NVIDIA driver (or CPU-only version if on laptop).
+
+- Place the downloaded libtorch folder at: `/home/libtorch/`.
+
+- If placed somwhere else change the path in CMakeLists.txt file at: `unitree_mujoco/examples/ros2/CMakeLists.txt`
+
+- Set the LD_LIBRARY_PATH to include Libtorch:
+    ```
+    export LD_LIBRARY_PATH=$HOME/libtorch/lib:$LD_LIBRARY_PATH
+    ```
+- Then build the ROS2 workspace:
+    ```
+    cd /path/to/unitree_mujoco/examples/ros2
+    colcon build
+    ```
 
 # Usage
 ## 1. Simulation Configuration
@@ -240,4 +311,109 @@ export ROS_DOMAIN_ID=1 # Modify the domain id to match the simulation
 source ~/unitree_ros2/setup.sh # Use the network card connected to the robot
 export ROS_DOMAIN_ID=0 # Use the default domain id
 ./install/stand_go2/bin/stand_go2 # Run
+```
+
+
+
+---
+# Policy Inference on robot
+
+## Simulation
+Once policies are trained and save via the code of our [Learning Repository](https://github.com/gautica/TALocoMotion) the trained policies can be tested via the python example script
+
+```
+cd example/python/ \
+python policy_general.py
+```
+
+The current best performing model were placed in the folder `example/python/best_models`.
+You can again swithc between the simulation and the real robot via changing the `ROS_DOMAIN_ID`.
+The executed model can be changed with the yaml file loaded, just change the config filename in the python script. In the folder config multiple configs for different policies are stored there.
+
+For C++ execution please be aware that these models first have to be converted into torchscript models, which are executable via libtorch in C++ code. This is can be done by loading and running the torchmodels by the `policy_general.py` script, but you have to make sure the `convert_to_torch_script` is set to true! The torchscript models are then placed in the folder `example/python/torchscript_model`. 
+
+```bash
+source ~/unitree_ros2/setup_local.sh # Use the local network card
+export ROS_DOMAIN_ID=1 # Modify the domain id to match the simulation
+./install/stand_go2/bin/policy_pos20 # Run
+```
+
+
+A few C++ scripts were prepared in order to circumvent building the code again for different models.
+- `policy_general` is a standard script which is technically able to be used for both variable stiffness and position based policies.
+- `policy_pos20` for executing Position based policy with 20 stiffness
+- `policy_pos50` for executing Position based policy with 50 stiffness
+
+![Simulation Demo](doc/simulation_demo.gif)
+
+
+## Hardware execution
+For executing on the hardware use the `policy_general_hw.py` or the `./install/stand_go2/bin/policy_general_hw`.
+Unless you have a powerful PC, execution of the policy and sending the commands to the robot are not in time using the python script. Therefore it is recommended to use the C++ script, which works fine on Laptops. It was tested with a Huawei Matebook and Ubuntu 22.04. 
+
+```bash
+source ~/unitree_ros2/setup.sh # Use the network card connected 
+export ROS_DOMAIN_ID=0 # Use the default domain id
+./install/stand_go2/bin/policy_general_hw # Run
+```
+![Hardware Demo](doc/hardware_demo.gif)
+
+
+### Controls
+
+When controlling the robot you can use the key directions or the classical WASD controls.
+- Forward: W/w
+- Backward: S/s
+- Left: a
+- Right: d
+- turn left: A (in C++ Z)
+- turn right: D (in C++ C)
+- Stand up (Space)
+- Lay Down (D)
+- Neutral Command (N)
+- Emergency damping mode (E)
+
+
+For Hardware execution the Remote is supported. The controls are as follows:
+
+- left joystick: Forward, Backwards and Side Movement
+- right joystick: Rotation
+- A for standing up
+- B for laying down
+
+
+
+---
+
+## CycloneDDS Build Error Fix
+
+If you encounter the following error during build:
+
+Could not locate cyclonedds. Try to set CYCLONEDDS_HOME or CMAKE_PREFIX_PATH
+
+
+Run the following commands to build and install CycloneDDS manually:
+
+```bash
+cd ~
+git clone https://github.com/eclipse-cyclonedds/cyclonedds -b releases/0.9.x
+cd cyclonedds && mkdir build install && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=../install
+cmake --build . --target install
+```
+
+
+# Citation
+
+If you used this work or found it helpful please cite us:
+```
+@misc{spoljaric2025variablestiffnessrobustlocomotion,
+      title={Variable Stiffness for Robust Locomotion through Reinforcement Learning}, 
+      author={Dario Spoljaric and Yashuai Yan and Dongheui Lee},
+      year={2025},
+      eprint={2502.09436},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2502.09436}, 
+}
 ```
