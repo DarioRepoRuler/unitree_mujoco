@@ -9,4 +9,4 @@ libtorch_1_2/
 *override*
 **/outputs/*
 */outputs/*
-*.csvdoc/*.gif
+*.csv
