@@ -407,7 +407,7 @@ class PolicyVicClass:
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
 
-@hydra.main(config_path='config', config_name='test_hw', version_base="1.2")
+@hydra.main(config_path='config', config_name='test_pos_hw', version_base="1.2")
 def test(cfg: DictConfig):
     print(f"Configuration: {cfg}")
     OmegaConf.set_struct(cfg, False)

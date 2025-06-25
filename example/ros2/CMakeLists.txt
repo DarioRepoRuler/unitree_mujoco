@@ -18,7 +18,6 @@ endif()
 #list(APPEND CMAKE_PREFIX_PATH "libtorch")
 list(APPEND CMAKE_PREFIX_PATH "/home/dspoljaric/libtorch/share/cmake/Torch")
 
-
 include_directories(include)
 link_directories(src)
 #link_directories(libtorch)
@@ -57,15 +56,19 @@ add_executable(policy_general src/policy_general.cpp src/motor_crc.cpp)
 add_executable(policy_general_hw src/policy_general_hw.cpp src/motor_crc.cpp)
 
 add_executable(policy_pos20 src/policy_pos20.cpp src/motor_crc.cpp)
+add_executable(policy_pos20_hw src/policy_pos20_hw.cpp src/motor_crc.cpp)
 add_executable(policy_pos50 src/policy_pos50.cpp src/motor_crc.cpp)
+add_executable(policy_pos50_hw src/policy_pos50_hw.cpp src/motor_crc.cpp)
 
 ament_target_dependencies(stand_go2 ${DEPENDENCY_LIST})
 ament_target_dependencies(policy_go2 ${DEPENDENCY_LIST} )
 ament_target_dependencies(policy_general ${DEPENDENCY_LIST} )
 ament_target_dependencies(policy_general_hw ${DEPENDENCY_LIST} )
 ament_target_dependencies(policy_pos20 ${DEPENDENCY_LIST} )
+ament_target_dependencies(policy_pos20_hw ${DEPENDENCY_LIST} )
 
 ament_target_dependencies(policy_pos50 ${DEPENDENCY_LIST} )
+ament_target_dependencies(policy_pos50_hw ${DEPENDENCY_LIST} )
 
 
 target_link_libraries(stand_go2  ${TORCH_LIBRARIES})
@@ -73,7 +76,9 @@ target_link_libraries(policy_go2  ${TORCH_LIBRARIES})
 target_link_libraries(policy_general ${TORCH_LIBRARIES})
 target_link_libraries(policy_general_hw  ${TORCH_LIBRARIES})
 target_link_libraries(policy_pos20  ${TORCH_LIBRARIES})
+target_link_libraries(policy_pos20_hw  ${TORCH_LIBRARIES})
 target_link_libraries(policy_pos50  ${TORCH_LIBRARIES})
+target_link_libraries(policy_pos50_hw  ${TORCH_LIBRARIES})
 
 
 set_property(TARGET stand_go2 PROPERTY CXX_STANDARD 17)
@@ -85,7 +90,9 @@ install(TARGETS
         policy_general
         policy_general_hw
         policy_pos20
+        policy_pos20_hw
         policy_pos50
+        policy_pos50_hw
         ${PROJECT_NAME})
 
 set_target_properties(policy_go2 PROPERTIES

@@ -1,0 +1,120 @@
+defaults:
+  - _self_
+  - policy: ppo
+
+ckpt_path: 'best_models/P50_hw.pt'  #'outputs/2024-11-24/09-54-02/checkpoints/last.pt' # #'outputs/2024-11-24/09-58-49/checkpoints/last.pt'
+
+env:
+  action_scale: 0.5
+  action_stiff_scale: 1.0
+  hip_scale: 0.6
+  control_mode: "P"
+  physics_steps_per_control_step: 4
+  sample_command_interval: 500
+
+  num_history_actor: 1
+  num_history_critic: 1
+  kick_vel: 0.0
+  push_interval: 25
+
+  terminate_geoms: ["base_0", "base_1", "base_2", "FR_hip","FL_hip","RR_hip","RL_hip"]
+  body_penalty_geom: ["base_0", "base_1", "base_2", "FR_hip", "FR_thigh", "FL_hip", "FL_thigh", "RR_hip", "RR_thigh", "RL_hip", "RL_thigh"]
+  default_pos: [0, 0, 0.32, 1, 0, 0, 0, -0.1, 0.8, -1.5, 0.1, 0.8, -1.5, -0.1, 1.0, -1.5, 0.1, 1.0, -1.5]
+  # Force kick in test
+  enable_force_kick: False
+  impulse_force_kick: False
+
+  force_kick_duration: 0.2
+  force_kick_impulse: [20.,20.]
+  force_kick_interval: 100
+  kick_force: [200.0, 200.0]
+
+  is_training: False
+  episode_length: 1000
+
+  single_obs_size: 48
+  single_obs_size_priv: 59
+ 
+
+  domain_rand:
+    randomisation: False
+    gravity_offset: [-0., 0.]
+    friction_range: [1.0, 1.0]
+    payload_range: [0., 0.]
+    hip_mass_range: [-0., 0.]
+    kp_range: [1., 1.]
+    kd_range: [1., 1.]
+    motor_strength_range: [1., 1.]
+
+    local_v_noise: 0.
+    local_w_noise: 0.
+    joint_noise: 0.0
+    joint_vel_noise: 0.0
+    gravity_noise: 0.0
+
+  normalization:
+    local_v_scale: 2.0
+    local_w_scale: 0.25
+    joint_vel_scale: 0.1
+    command_scale: 2.0
+  
+  control_range: {
+    'cmd_x': [-1.5, 1.5],
+    'cmd_y': [-1.5, 1.5],
+    'cmd_ang': [-0., 0.]
+  }
+
+  manual_control:
+    enable: True
+    task: 'auto' # can be either 'auto', 'force_push', 'heading_directions','xy_random' , 'escape pyramids' ,'track trajectory', 
+    cmd_x: 0.4
+    cmd_y: 0.
+    cmd_ang: 0.0
+
+  reset_pos_x: [-0.0, 0.0]
+  reset_pos_y: [-0.0, 0.0]
+  reset_theta: [0, 0.3926990]
+  reset_a_x: [-0.,0.]
+  reset_a_y: [-0.,0.]
+
+  control:
+    stiff_range: [0.5, 1.5]
+    p_gain: 50.0
+    d_gain: 1.0
+  
+  contacts:
+    total: 23
+
+  reward_scales: { 
+          'tracking_lin_vel': 1.5, 
+          'tracking_ang_vel': 0.8, 
+          'lin_vel_z': -2.0, 
+          'ang_vel_xy': -0.05, 
+          'orientation': -5.0,
+          'stand_still': -0.5, 
+          'feet_air_time': 0.5,
+          'termination': -10.0,
+          'foot_slip': -0.1,
+          'action_rate': -0.002,
+
+          'rew_limits': -0.02,
+          'rew_acceleration': -2.5e-7,
+          'rew_collision': -10.0,
+          'rew_power': -2.e-6,
+          #"hip": 0.05,
+          'rew_joint_track': -0.1,
+  }
+ 
+success_threshold: 0.78125
+rollouts_per_experiment: 8
+plot_details: True
+
+result_name: 'results_vic2_0810.csv'
+timesteps_per_rollout: 50
+num_iterations: 65
+num_envs: 1
+
+viz: True
+device: 'cuda:0'
+curriculum: False
+scene_xml: 'unitree_go2/flat.xml'
