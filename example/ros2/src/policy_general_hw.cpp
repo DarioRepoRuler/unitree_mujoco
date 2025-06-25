@@ -778,7 +778,11 @@ int main(int argc, char **argv)
         // Get the path to the executable
         std::filesystem::path exePath = std::filesystem::canonical(argv[0]);
         // std::filesystem::path modelPath = exePath.parent_path() / "vic2_model.pt";
-        std::filesystem::path modelPath = "/home/dspoljaric/Desktop/unitree_mujoco/example/python/torchscript_model/VIC_2_model_HW.pt";
+        std::filesystem::path modelPath;
+        modelPath = std::filesystem::current_path(); // Get current working directory
+        modelPath = modelPath.parent_path(); // Up to ros2/
+        modelPath = modelPath / "python" / "torchscript_model" / "VIC_2_model_HW.pt";
+        // std::filesystem::path modelPath = "/home/dspoljaric/Desktop/unitree_mujoco/example/python/torchscript_model/VIC_2_model_HW.pt";
         std::cout << "Model path: " << modelPath.string() << std::endl;
         // Load the model
         model = torch::jit::load(modelPath.string());
